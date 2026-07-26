@@ -1,32 +1,37 @@
-Dream Bank System API
-Overview
+# 🏦 Dream Bank System API
 
-The Dream Bank System API is a MuleSoft System API developed using Mule 4, APIKit, and Anypoint Studio. It provides RESTful APIs to manage bank accounts, including account creation, retrieval, update, deletion, health monitoring, database operations using Snowflake, and automated email notifications.
+## Overview
 
-Features
-Account Creation
-Get Account Details
-Update Account Information
-Delete Account
-Auto Account Number Generation
-Snowflake Database Integration
-Email Notifications
-API Health Check
-Global Error Handling
+Dream Bank System API is a MuleSoft System API developed using Mule 4 and APIKit. It provides REST APIs for managing customer bank accounts, including account creation, retrieval, update, deletion, health monitoring, and email notifications. Customer information is stored in Snowflake Database, and email notifications are sent using the SMTP connector.
+
+---
+
+# Project Architecture
+
+```
+Client
+   │
+   ▼
+HTTP Listener
+   │
 APIKit Router
-REST APIs
-Logging
-Technology Stack
-Technology	Version
-Mule Runtime	4.x
-Anypoint Studio	7.x
-APIKit	Latest
-DataWeave	2.0
-Snowflake Connector	Mule Connector
-SMTP Connector	Mule Email Connector
-HTTP Listener	Mule HTTP Connector
-Maven	3.x
-Project Structure
+   │
+Implementation Flow
+   │
+─────────────────────────────────────────────
+│                 │                │
+▼                 ▼                ▼
+Snowflake DB   Email Service   Health Check
+│
+▼
+JSON Response
+```
+
+---
+
+# Project Structure
+
+```
 src
 │
 ├── main
@@ -35,162 +40,303 @@ src
 │   │   ├── implementation.xml
 │   │   ├── database_implementation.xml
 │   │   ├── auto_accountNumber_generation.xml
-│   │   ├── success_email_integration.xml
 │   │   ├── account_already_email_integration.xml
 │   │   ├── account_doesnot_exist_email_integration.xml
+│   │   ├── success_email_integration.xml
 │   │   └── health_check.xml
 │   │
 │   └── resources
 │       ├── application.yaml
 │       ├── log4j2.xml
-│       ├── properties
+│       ├── RAML
+│       ├── Properties
 │       └── DataWeave Scripts
 │
 └── test
     └── resources
-API Endpoints
-Create Account
-POST /accounts
+```
 
-Creates a new customer account.
+---
 
-Get Account Details
-GET /accounts
+# Modules Description
 
-Returns customer account information.
+## global.xml
 
-Supports query parameter:
+Contains all reusable configurations.
 
-status=ACTIVE
-status=INACTIVE
-Update Account
-PATCH /accounts/{accountNumber}
+- HTTP Listener Configuration
+- APIKit Configuration
+- Snowflake Database Configuration
+- SMTP Email Configuration
+- HTTP Request Configuration
+- Global Error Handling
 
-Updates customer information such as:
+---
 
-Full Name
-Address
-Mobile Number
+## implementation.xml
 
-After successful update:
+Main business logic.
 
-Database updated
-Success email sent
-JSON response returned
-Delete Account
-DELETE /accounts/{accountNumber}
+Responsible for:
 
-Deletes customer account.
+- API Request Processing
+- Data Validation
+- Calling Database Flows
+- Calling Email Flows
+- Returning API Response
 
-Workflow:
+---
 
-Verify account
-Send account deactivation email
-Delete from Snowflake
-Return success response
-Health Check
-GET /health
+## database_implementation.xml
+
+Handles all database operations.
+
+Functions
+
+- Insert Customer
+- Retrieve Customer
+- Update Customer
+- Delete Customer
+
+---
+
+## auto_accountNumber_generation.xml
+
+Generates a unique account number automatically during account creation.
+
+---
+
+## success_email_integration.xml
+
+Sends account creation success email to the customer.
+
+---
+
+## account_already_email_integration.xml
+
+Sends notification when the customer account already exists.
+
+---
+
+## account_doesnot_exist_email_integration.xml
+
+Sends notification when the requested account is not found.
+
+---
+
+## health_check.xml
+
+Checks whether the application is running successfully.
 
 Example Response
 
+```json
+{
+    "status":"UP",
+    "message":"Dream Bank API is Running"
+}
+```
+
+---
+
+# REST APIs
+
+## Create Account
+
+```
+POST /accounts
+```
+
+Creates a new customer account.
+
+---
+
+## Get Account Details
+
+```
+GET /accounts
+```
+
+Retrieve customer information.
+
+Query Parameter
+
+```
+status=ACTIVE
+status=INACTIVE
+```
+
+---
+
+## Update Account
+
+```
+PATCH /accounts/{accountNumber}
+```
+
+Updates customer information.
+
+Example
+
+- Full Name
+- Address
+- Mobile Number
+
+---
+
+## Delete Account
+
+```
+DELETE /accounts/{accountNumber}
+```
+
+Deletes customer account after verification.
+
+---
+
+## Health Check
+
+```
+GET /health
+```
+
 Success
 
+```json
 {
-   "status":"UP",
-   "message":"Dream Bank API is running successfully"
+    "status":"UP",
+    "message":"API is Running"
 }
+```
 
 Failure
 
+```json
 {
-   "status":"DOWN",
-   "message":"Dream Bank API is not running"
+    "status":"DOWN",
+    "message":"API is Not Running"
 }
-Database
+```
 
-The project uses Snowflake Database for storing customer information.
+---
 
-Operations include:
+# Technologies Used
 
-Insert
-Select
-Update
-Delete
-Email Notifications
+- MuleSoft 4.x
+- APIKit
+- DataWeave 2.0
+- HTTP Connector
+- Snowflake Connector
+- SMTP Connector
+- Maven
+- Java 17
+- Anypoint Studio
 
-SMTP email integration is configured for:
+---
 
-Account Creation
-Account Update
-Account Deletion
-Account Status Notifications
+# Database
 
-Emails are sent in HTML format.
+Database Used
 
-Configuration
+- Snowflake
 
-Application properties include:
+Operations
 
-HTTP Listener
-Snowflake Credentials
-SMTP Configuration
-Environment Properties
+- Insert
+- Select
+- Update
+- Delete
 
-The project uses:
+---
 
-HTTP Listener
-APIKit Router
-Snowflake Connector
-SMTP Connector
-Configuration Properties
-HTTP Request Configuration
-Error Handling
+# Email Notifications
 
-Global APIKit error handling is implemented for:
+Emails are automatically sent for
 
-400 Bad Request
-404 Resource Not Found
-405 Method Not Allowed
-406 Not Acceptable
-415 Unsupported Media Type
-501 Not Implemented
+- Account Creation
+- Account Update
+- Account Deletion
+- Account Validation
 
-Custom JSON responses are returned for each error.
+Email Format
 
-Build Project
+- HTML Email Template
+
+---
+
+# Error Handling
+
+The application returns appropriate HTTP status codes.
+
+| Status Code | Description |
+|-------------|-------------|
+| 200 | Success |
+| 400 | Bad Request |
+| 404 | Resource Not Found |
+| 405 | Method Not Allowed |
+| 406 | Not Acceptable |
+| 415 | Unsupported Media Type |
+| 500 | Internal Server Error |
+| 501 | Not Implemented |
+
+---
+
+# Build Project
+
+```bash
 mvn clean package
-Run Project
+```
+
+---
+
+# Run Project
+
+```bash
 mvn mule:run
+```
 
-Or run directly from Anypoint Studio.
+Or
 
-Testing
+Run directly from **Anypoint Studio**.
 
-Recommended tools:
+---
 
-Postman
-API Console
-Logging
+# Testing
 
-Application logs are available through:
+Use
 
-Anypoint Studio Console
-Runtime Logs
-CloudHub Logs (if deployed)
-Future Enhancements
-JWT Authentication
-OAuth 2.0
-API Manager Policies
-Rate Limiting
-CloudHub Deployment
-CI/CD using GitHub Actions
-Monitoring with Anypoint Monitoring
-Author
+- Postman
+- API Console
+- MUnit
 
-Developer: Narsing Beesetti
+---
 
-Project Name: Dream Bank System API
+# Logging
 
-Version: 1.0.0
+Application logs are available in
 
-This README is suitable for GitHub and professional portfolio documentation, and clearly explains the architecture, features, APIs, technologies, and project organization.
+- Anypoint Studio Console
+- Runtime Logs
+- CloudHub Logs
+
+---
+
+# Future Enhancements
+
+- OAuth 2.0 Authentication
+- JWT Security
+- Rate Limiting
+- CI/CD Pipeline
+- CloudHub Deployment
+- API Monitoring
+- Anypoint API Manager Policies
+
+---
+
+# Author
+
+**Developer:** Narsing Beesetti
+
+**Project:** Dream Bank System API
+
+**Version:** 1.0.0
