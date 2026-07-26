@@ -1,0 +1,366 @@
+#%RAML 1.0
+title: dream-bank-sapi
+version: v1
+
+protocols: [HTTP, HTTPS]
+mediaType: 
+- application/json
+- application/xml
+
+types:
+
+  Account:
+    type: object
+    properties:
+      accountNumber: string
+      FullName: string
+      dateOfBirth: date-only
+      mobileNumber: string
+      email: string
+      address: string
+      status:
+        type: string
+        enum: [ACTIVE, INACTIVE]
+      balance: number
+    example:
+      accountNumber: "875896587456"
+      FullName: "Narsing Rao"
+      dateOfBirth: "1998-05-12"
+      mobileNumber: "9876543210"
+      email: "narsingbeesetti22@gmail.com"
+      address: "Andhra Pradesh, India"
+      status: "ACTIVE"
+      balance: 5000
+  WhatsappMessageResponse:
+    type: object
+    properties:
+      status:
+        type: string
+        enum: [SUCCESS, FAILED]
+      message:
+        type: string
+
+  CreateAccountRequest:
+    type: object
+    properties:
+      FullName: string
+      dateOfBirth: date-only
+      mobileNumber: string
+      email: string
+      address: string
+    example:
+      FullName: "Narsing Rao"
+      dateOfBirth: "1998-05-12"
+      mobileNumber: "9876543210"
+      email: "narsingbeesetti22@gmail.com"
+      address: "Andhra Pradesh, India"
+  HealthResponse:
+    type: object
+    properties:
+      status:
+        type: string
+        enum: [UP, DOWN]
+      message:
+        type: string
+      service:
+        type: string
+      version:
+        type: string
+      timestamp:
+        type: datetime
+
+  AmountRequest:
+    type: object
+    properties:
+      amount:
+        type: number
+        minimum: 1
+    example:
+      amount: 1000
+
+  MessageResponse:
+    type: object
+    properties:
+      message: string
+    example:
+      message: "Operation completed successfully"
+
+  Transaction:
+    type: object
+    properties:
+      accountNumber: string
+      type: string
+      amount: number
+      balance: number
+      timestamp: datetime
+    example:
+      accountNumber: "878585974586"
+      type: "DEPOSIT"
+      amount: 1000
+      balance: 6000
+      timestamp: "2026-04-23T10:15:30Z"
+/health:
+  get:
+    description: Checks whether the API is running and healthy.
+    responses:
+      200:
+        body:
+          application/json:
+            type: HealthResponse
+            example:
+              status: "UP"
+              message: "niversal-banking-api is running successfully."
+              service: "universal-banking-api"
+              version: "1.0.0"
+              timestamp: "2026-07-19T11:30:00Z"
+
+/accounts:
+
+  post:
+    queryParameters:
+      adharNumber:
+        type: string
+        required: true
+        minLength: 12
+        maxLength: 12
+        example: "123456789012"
+
+      bankName:
+        type: string
+        required: true
+        enum: [
+HDFC,
+SBI,
+APGVB,
+AXIS,
+ICICI,
+YES,
+KOTAK MAHINDRA,
+UNION BANK OF INDIA,
+BANK OF BARODA,
+PUNJAB NATIONAL,
+CANARA,
+INDIAN,
+UCO,
+CENTRAL BANK OF INDIA,
+IOB,
+FEDERAL,
+INDUSIND,
+APGB,
+SAPTAGIRI GRAMEENA,
+APCOB,
+DCCBS
+]
+        example: "SBI"
+
+    body:
+      application/json:
+        type: CreateAccountRequest
+
+    responses:
+      201:
+        body:
+          application/json:
+            type: MessageResponse
+            example:
+              message: "Account created successfully"
+
+      400:
+        body:
+          application/json:
+            type: MessageResponse
+            example:
+              message: "Invalid request data"
+
+  get:
+    queryParameters:
+      status:
+        type: string
+        enum: [ACTIVE, INACTIVE]
+        example: "ACTIVE"
+
+    responses:
+      200:
+        body:
+          application/json:
+            type: Account[]
+            example:
+              - accountNumber: "845895698885"
+                FullName: "Narsing Rao"
+                dateOfBirth: "1998-05-12"
+                mobileNumber: "9876543210"
+                email: "narsingbeesetti22@gmail.com"
+                address: "Andhra Pradesh, India"
+                status: "ACTIVE"
+                balance: 5000
+
+  /{accountNumber}:
+
+    uriParameters:
+      accountNumber:
+        type: string
+        example: "874589874588"
+
+    get:
+      responses:
+        200:
+          body:
+            application/json:
+              type: Account
+        404:
+          body:
+            application/json:
+              type: MessageResponse
+              example:
+                message: "Account not found"
+
+    patch:
+      body:
+        application/json:
+          type: object
+          properties:
+            FullName:
+              type: string
+              required: false
+            mobileNumber:
+              type: string
+              required: true
+            address:
+              type: string
+              required: false
+            email:
+              type: string
+              required: true
+          example:
+            FullName: "Updated Name"
+            mobileNumber: "9876543210"
+            address: "Updated Address"
+            email: "narsingbeesetti22@gmail.com"
+
+      responses:
+        200:
+          body:
+            application/json:
+              type: MessageResponse
+              example:
+                message: "Account updated successfully"
+
+    delete:
+      responses:
+        200:
+          body:
+            application/json:
+              type: MessageResponse
+              example:
+                message: "Account deleted successfully"
+
+    /deposit:
+      post:
+        body:
+          application/json:
+            type: AmountRequest
+        responses:
+          200:
+            body:
+              application/json:
+                type: Transaction
+
+    /withdraw:
+      post:
+        body:
+          application/json:
+            type: AmountRequest
+        responses:
+          200:
+            body:
+              application/json:
+                type: Transaction
+          400:
+            body:
+              application/json:
+                type: MessageResponse
+                example:
+                  message: "Insufficient balance"
+
+    /transactions:
+      get:
+        description: Get transaction history
+        responses:
+          200:
+            body:
+              application/json:
+                type: Transaction[]
+                example:
+                  - accountNumber: "874586875842"
+                    type: "DEPOSIT"
+                    amount: 1000
+                    balance: 6000
+                    timestamp: "2026-04-23T10:15:30Z"
+
+/assistance/whatsapp:
+  post:
+    description: Sends a WhatsApp message to the specified mobile number.
+
+    queryParameters:
+      token:
+        type: string
+        required: true
+        description: UltraMsg API token used for authentication.
+        example: "abc123xyz"
+
+    body:
+      application/json:
+        type: object
+        properties:
+          mobileNumber:
+            type: string
+            required: true
+            description: Recipient mobile number with country code.
+            pattern: '^[0-9]{10,15}$'
+            example: "919876543210"
+
+          message:
+            type: string
+            required: true
+            minLength: 1
+            maxLength: 4096
+            description: WhatsApp message to send.
+            example: "Hello, I need help with my account."
+
+        example:
+          mobileNumber: "919876543210"
+          message: "Hello, I need help with my account."
+
+    responses:
+      200:
+        description: WhatsApp message sent successfully.
+        body:
+          application/json:
+            type: MessageResponse
+            example:
+              status: "SUCCESS"
+              message: "Message sent via WhatsApp successfully"
+
+      400:
+        description: Invalid request.
+        body:
+          application/json:
+            example:
+              status: "FAILED"
+              message: "Invalid mobile number or message."
+
+      401:
+        description: Unauthorized.
+        body:
+          application/json:
+            example:
+              status: "FAILED"
+              message: "Invalid or missing token."
+
+      500:
+        description: Internal server error.
+        body:
+          application/json:
+            example:
+              status: "FAILED"
+              message: "Unable to send WhatsApp message."
