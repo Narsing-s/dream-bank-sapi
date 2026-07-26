@@ -1,0 +1,743 @@
+{
+  "info": {
+    "_postman_id": "e5f70c0a-64e2-4a4b-8569-7bd9195240ca",
+    "name": "dream-bank-sapi",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "32278985"
+  },
+  "item": [
+    {
+      "name": "acc creation",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              ""
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        },
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              ""
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"FullName\": \"Anjali boddeda\",\r\n  \"dateOfBirth\": \"2000-08-06\",\r\n  \"mobileNumber\": \"9074561230\",\r\n  \"email\": \"narsingbeesetti22@gmail.com\",\r\n  \"address\": \"Chowduvada, 123/5\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://dream-bank-sapi-say98g.5sc6y6-3.usa-e2.cloudhub.io/api/accounts?adharNumber=895698569586&bankName=SBI",
+          "protocol": "https",
+          "host": [
+            "dream-bank-sapi-say98g",
+            "5sc6y6-3",
+            "usa-e2",
+            "cloudhub",
+            "io"
+          ],
+          "path": [
+            "api",
+            "accounts"
+          ],
+          "query": [
+            {
+              "key": "adharNumber",
+              "value": "895698569586"
+            },
+            {
+              "key": "bankName",
+              "value": "SBI"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "get account by accno",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.expect(pm.response.code).to.eql(200);",
+              "})",
+              "",
+              "pm.test('Response time is less than 5000ms', function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+              "})",
+              "",
+              "pm.test('Response has JSON body', function () {",
+              "    pm.response.to.be.json;",
+              "})",
+              "",
+              "pm.test('Response body contains accountNumber', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('accountNumber');",
+              "})",
+              "",
+              "pm.test('Response body contains FullName', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('FullName');",
+              "})",
+              "",
+              "pm.test('Response body contains balance', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('balance');",
+              "})",
+              "",
+              "pm.test('Response body contains status', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('status');",
+              "})",
+              "",
+              "pm.test('Balance is a number', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.balance).to.be.a('number');",
+              "})"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://dream-bank-sapi-say98g.5sc6y6-3.usa-e2.cloudhub.io/api/accounts/856974575854",
+          "protocol": "https",
+          "host": [
+            "dream-bank-sapi-say98g",
+            "5sc6y6-3",
+            "usa-e2",
+            "cloudhub",
+            "io"
+          ],
+          "path": [
+            "api",
+            "accounts",
+            "856974575854"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "update acc",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// update acc — PATCH /api/accounts/{{accountNumber}}",
+              "pm.test('Status code is 200', function () {",
+              "    pm.expect(pm.response.code).to.eql(200);",
+              "});",
+              "",
+              "pm.test('Response has JSON body', function () {",
+              "    pm.response.to.be.json;",
+              "});",
+              "",
+              "pm.test('Response contains accountNumber', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('accountNumber');",
+              "});",
+              "",
+              "pm.test('FullName is updated to Narsi', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.FullName).to.eql('Narsi');",
+              "});",
+              "",
+              "pm.test('Address is updated to CVD', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.address).to.eql('CVD');",
+              "});",
+              "",
+              "pm.test('Mobile number is updated to 9806782612', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.mobileNumber).to.eql('9806782612');",
+              "});",
+              "",
+              "pm.test('Account status is still ACTIVE after update', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.eql('ACTIVE');",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"FullName\": \"Narsi\",\r\n  \"address\": \"CVD\",\r\n  \"mobileNumber\": \"9806782612\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://dream-bank-sapi-say98g.5sc6y6-3.usa-e2.cloudhub.io/api/accounts/856974569712",
+          "protocol": "https",
+          "host": [
+            "dream-bank-sapi-say98g",
+            "5sc6y6-3",
+            "usa-e2",
+            "cloudhub",
+            "io"
+          ],
+          "path": [
+            "api",
+            "accounts",
+            "856974569712"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "del acc",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 or 204', function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([",
+              "        200,",
+              "        204",
+              "    ]);",
+              "})",
+              "",
+              "pm.test('Response time is less than 5000ms', function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+              "})"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "https://dream-bank-sapi-say98g.5sc6y6-3.usa-e2.cloudhub.io/api/accounts/{{accountNumber}}",
+          "protocol": "https",
+          "host": [
+            "dream-bank-sapi-say98g",
+            "5sc6y6-3",
+            "usa-e2",
+            "cloudhub",
+            "io"
+          ],
+          "path": [
+            "api",
+            "accounts",
+            "{{accountNumber}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "transactions",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.expect(pm.response.code).to.eql(200);",
+              "})",
+              "",
+              "pm.test('Response time is less than 5000ms', function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+              "})",
+              "",
+              "pm.test('Response has JSON body', function () {",
+              "    pm.response.to.be.json;",
+              "})",
+              "",
+              "pm.test('Response is an array', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.be.an('array');",
+              "})"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        },
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              ""
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://dream-bank-sapi-say98g.5sc6y6-3.usa-e2.cloudhub.io/api/accounts/{{accountNumber}}/transactions",
+          "protocol": "https",
+          "host": [
+            "dream-bank-sapi-say98g",
+            "5sc6y6-3",
+            "usa-e2",
+            "cloudhub",
+            "io"
+          ],
+          "path": [
+            "api",
+            "accounts",
+            "{{accountNumber}}",
+            "transactions"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "withdraw",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"amount\": 1000\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://dream-bank-sapi-say98g.5sc6y6-3.usa-e2.cloudhub.io/api/accounts/{{accountNumber}}/withdraw",
+          "protocol": "https",
+          "host": [
+            "dream-bank-sapi-say98g",
+            "5sc6y6-3",
+            "usa-e2",
+            "cloudhub",
+            "io"
+          ],
+          "path": [
+            "api",
+            "accounts",
+            "{{accountNumber}}",
+            "withdraw"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "deposit",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// deposit — POST /api/accounts/{{accountNumber}}/deposit",
+              "pm.test('Status code is 200', function () {",
+              "    pm.expect(pm.response.code).to.eql(200);",
+              "});",
+              "",
+              "pm.test('Response has JSON body', function () {",
+              "    pm.response.to.be.json;",
+              "});",
+              "",
+              "pm.test('Response contains accountNumber', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('accountNumber');",
+              "});",
+              "",
+              "pm.test('Response contains balance', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('balance');",
+              "});",
+              "",
+              "pm.test('Balance is a number after deposit', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.balance).to.be.a('number');",
+              "});",
+              "",
+              "pm.test('Balance is greater than zero after deposit', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.balance).to.be.above(0);",
+              "});",
+              "",
+              "pm.test('Response contains transactionId', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('transactionId');",
+              "});",
+              "",
+              "pm.test('Balance increased after deposit compared to post-withdrawal balance', function () {",
+              "    var jsonData = pm.response.json();",
+              "    var prevBalance = parseFloat(pm.environment.get('balanceAfterWithdraw'));",
+              "    if (!isNaN(prevBalance)) {",
+              "        pm.expect(jsonData.balance).to.be.above(prevBalance);",
+              "    } else {",
+              "        console.warn('[deposit] balanceAfterWithdraw not set — skipping balance comparison');",
+              "    }",
+              "});",
+              "",
+              "// Save updated balance",
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData.balance !== undefined) {",
+              "        pm.environment.set('balanceAfterDeposit', jsonData.balance);",
+              "        console.log('[deposit] Balance after deposit:', jsonData.balance);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"amount\": 1000\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://dream-bank-sapi-say98g.5sc6y6-3.usa-e2.cloudhub.io/api/accounts/856974569712/deposit",
+          "protocol": "https",
+          "host": [
+            "dream-bank-sapi-say98g",
+            "5sc6y6-3",
+            "usa-e2",
+            "cloudhub",
+            "io"
+          ],
+          "path": [
+            "api",
+            "accounts",
+            "856974569712",
+            "deposit"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "active acc / inactive acc",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              ""
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://dream-bank-sapi-say98g.5sc6y6-3.usa-e2.cloudhub.io/api/accounts?status=ACTIVE",
+          "protocol": "https",
+          "host": [
+            "dream-bank-sapi-say98g",
+            "5sc6y6-3",
+            "usa-e2",
+            "cloudhub",
+            "io"
+          ],
+          "path": [
+            "api",
+            "accounts"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "ACTIVE"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "whatsappAssistant",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"mobileNumber\": \"9381138806\",\r\n  \"message\": \"accountdetails\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://dream-bank-sapi-say98g.5sc6y6-3.usa-e2.cloudhub.io/api/assistance/whatsapp?token=s4gyjlv0audzesjd",
+          "protocol": "https",
+          "host": [
+            "dream-bank-sapi-say98g",
+            "5sc6y6-3",
+            "usa-e2",
+            "cloudhub",
+            "io"
+          ],
+          "path": [
+            "api",
+            "assistance",
+            "whatsapp"
+          ],
+          "query": [
+            {
+              "key": "token",
+              "value": "s4gyjlv0audzesjd"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "health check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://dream-bank-sapi-say98g.5sc6y6-3.usa-e2.cloudhub.io/api/health",
+          "protocol": "https",
+          "host": [
+            "dream-bank-sapi-say98g",
+            "5sc6y6-3",
+            "usa-e2",
+            "cloudhub",
+            "io"
+          ],
+          "path": [
+            "api",
+            "health"
+          ]
+        },
+        "description": "Health check to verify the CloudHub endpoint is reachable and the Mule app is running. If this returns 502, the app is likely down or misconfigured in Runtime Manager."
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// ============================================================",
+          "// real-bank-api — Collection-level Pre-request Script",
+          "// Runs before EVERY request in this collection",
+          "// ============================================================",
+          "",
+          "// ----------------------------------------------------------",
+          "// 1. GUARD: ensure accountNumber is set in the environment",
+          "//    (populated by acc creation test script; fall back to a",
+          "//     known default so individual requests still work)",
+          "// ----------------------------------------------------------",
+          "if (!pm.environment.get('accountNumber')) {",
+          "    pm.environment.set('accountNumber', '856974578431');",
+          "    console.warn('[pre-request] accountNumber not found in environment — using fallback value 856974578431');",
+          "} else {",
+          "    console.log('[pre-request] accountNumber =', pm.environment.get('accountNumber'));",
+          "}",
+          "",
+          "// ----------------------------------------------------------",
+          "// 2. GUARD: ensure acc creation body variables are present",
+          "//    Fall back to sensible defaults if not set in environment",
+          "// ----------------------------------------------------------",
+          "var defaults = {",
+          "    FullName:      'Anjali Boddeda',",
+          "    dateOfBirth:   '2000-08-06',",
+          "    mobileNumber:  '9074561230',",
+          "    email:         'narsingbeesetti22@gmail.com',",
+          "    address:       'Chowduvada, 123/5',",
+          "    adharNumber:   '895698569586',",
+          "    bankName:      'SBI'",
+          "};",
+          "",
+          "Object.keys(defaults).forEach(function(key) {",
+          "    if (!pm.environment.get(key)) {",
+          "        pm.environment.set(key, defaults[key]);",
+          "        console.warn('[pre-request] ' + key + ' not set — using default:', defaults[key]);",
+          "    }",
+          "});",
+          "",
+          "// ----------------------------------------------------------",
+          "// 3. Log the current request being executed",
+          "// ----------------------------------------------------------",
+          "console.log('[pre-request] Running:', pm.info.requestName, '|', pm.request.method, pm.request.url.toString());",
+          "",
+          "// ----------------------------------------------------------",
+          "// 4. Set Content-Type header if request has a body and",
+          "//    Content-Type is not already set",
+          "// ----------------------------------------------------------",
+          "if (pm.request.body && pm.request.body.raw) {",
+          "    var hasContentType = pm.request.headers.has('Content-Type');",
+          "    if (!hasContentType) {",
+          "        pm.request.headers.add({",
+          "            key: 'Content-Type',",
+          "            value: 'application/json'",
+          "        });",
+          "        console.log('[pre-request] Content-Type header added automatically');",
+          "    }",
+          "}",
+          "",
+          "// ----------------------------------------------------------",
+          "// 5. Timestamp — useful for debugging run timing",
+          "// ----------------------------------------------------------",
+          "pm.environment.set('runTimestamp', new Date().toISOString());",
+          "console.log('[pre-request] Run timestamp:', pm.environment.get('runTimestamp'));"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// ============================================================",
+          "// real-bank-api — Collection-level Post-response Test Script",
+          "// Runs after EVERY request in this collection",
+          "// ============================================================",
+          "",
+          "// ----------------------------------------------------------",
+          "// 1. Response time check — all requests must respond < 5s",
+          "// ----------------------------------------------------------",
+          "pm.test('[Common] Response time is under 5000ms', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});",
+          "",
+          "// ----------------------------------------------------------",
+          "// 2. No 4xx client errors (except 404 which may be valid",
+          "//    for deleted/non-existent accounts)",
+          "// ----------------------------------------------------------",
+          "pm.test('[Common] No unexpected client errors (4xx)', function () {",
+          "    var code = pm.response.code;",
+          "    // Allow 404 as it can be a valid response for missing accounts",
+          "    pm.expect(code).to.not.be.oneOf([400, 401, 403, 405, 409, 422, 429]);",
+          "});",
+          "",
+          "// ----------------------------------------------------------",
+          "// 3. No 5xx server errors",
+          "// ----------------------------------------------------------",
+          "pm.test('[Common] No server errors (5xx)', function () {",
+          "    pm.expect(pm.response.code).to.be.below(500);",
+          "});",
+          "",
+          "// ----------------------------------------------------------",
+          "// 4. Content-Type is application/json for non-empty responses",
+          "// ----------------------------------------------------------",
+          "if (pm.response.code !== 204 && pm.response.text().length > 0) {",
+          "    pm.test('[Common] Response Content-Type is application/json', function () {",
+          "        pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+          "    });",
+          "}",
+          "",
+          "// ----------------------------------------------------------",
+          "// 5. Response body is valid JSON for non-empty responses",
+          "// ----------------------------------------------------------",
+          "if (pm.response.code !== 204 && pm.response.text().length > 0) {",
+          "    pm.test('[Common] Response body is valid JSON', function () {",
+          "        pm.expect(function () {",
+          "            pm.response.json();",
+          "        }).to.not.throw();",
+          "    });",
+          "}",
+          "",
+          "// ----------------------------------------------------------",
+          "// 6. Log response summary to console for every request",
+          "// ----------------------------------------------------------",
+          "console.log(",
+          "    '[post-response]', pm.info.requestName,",
+          "    '| Status:', pm.response.code,",
+          "    '| Time:', pm.response.responseTime + 'ms'",
+          ");",
+          "",
+          "// ----------------------------------------------------------",
+          "// 7. Alert on 5xx — log full response body for debugging",
+          "// ----------------------------------------------------------",
+          "if (pm.response.code >= 500) {",
+          "    console.error('[post-response] SERVER ERROR on', pm.info.requestName);",
+          "    console.error('[post-response] Response body:', pm.response.text());",
+          "}",
+          "",
+          "// ----------------------------------------------------------",
+          "// 8. Alert on unexpected 4xx — log details for debugging",
+          "// ----------------------------------------------------------",
+          "if (pm.response.code >= 400 && pm.response.code < 500 && pm.response.code !== 404 && pm.response.code !== 204) {",
+          "    console.warn('[post-response] CLIENT ERROR on', pm.info.requestName, '| Code:', pm.response.code);",
+          "    console.warn('[post-response] Response body:', pm.response.text());",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "bankName",
+      "value": ""
+    },
+    {
+      "key": "adharNumber ",
+      "value": ""
+    }
+  ]
+}
