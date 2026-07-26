@@ -1,0 +1,1566 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email" xmlns:snowflake="http://www.mulesoft.org/schema/mule/snowflake" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+http://www.mulesoft.org/schema/mule/snowflake http://www.mulesoft.org/schema/mule/snowflake/current/mule-snowflake.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd">
+    <http:listener-config name="dream-bank-sapi-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+    <apikit:config name="dream-bank-sapi-config" api="dream-bank-sapi.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <snowflake:snowflake-config name="Snowflake_Config" doc:name="Snowflake Config" doc:id="94280505-f3e8-4d39-81e7-93b12acc109c" >
+		<snowflake:snowflake-connection accountName="${db.sf.name}" warehouse="${db.sf.warehouse}" database="${db.sf.database}" schema="${db.sf.schema}" user="${db.sf.user}" password="${db.sf.password}" role="${db.sf.role}" />
+	</snowflake:snowflake-config>
+	<configuration-properties doc:name="Configuration properties" doc:id="313320cd-a15f-431f-bd3d-3f68b67ff08c" file="config_properties\local_properties.yaml" />
+	<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="ae9ace22-ae71-49aa-abc9-00d799962e9b" >
+		<email:smtp-connection host="${email.host}" port="${email.port}" user="${email.username}" password="${email.password}" >
+			<email:properties >
+				<email:property key="mail.smtp.starttls.enable" value="true" />
+			</email:properties>
+		</email:smtp-connection>
+	</email:smtp-config>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="43e55801-11e4-4124-86d0-b5ddfd1128dc" >
+		<http:request-connection host="${http.requester.host}" />
+	</http:request-config>
+	<flow name="dream-bank-sapi-main">
+        <http:listener config-ref="dream-bank-sapi-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="dream-bank-sapi-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="dream-bank-sapi-console">
+        <http:listener config-ref="dream-bank-sapi-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="dream-bank-sapi-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+	<flow name="delete:\accounts\(accountNumber):dream-bank-sapi-config">
+		<logger level="INFO" doc:name="Start Flow" doc:id="decd5e4c-f7b9-4fef-bc9e-f256502552bc" message="----------------------------------Start Flow------------------------------" />
+		<set-variable value="#[attributes.uriParams.accountNumber as String]" doc:name="accountNumber" doc:id="ee21b811-be73-4516-89a6-4839f8d693b9" variableName="accountNumber" />
+		<set-variable value="#[%dw 2.0&#10;output application/json&#10;var inp = []&#10;---&#10;inp&lt;&lt;payload reduce ((item, accumulator) -&gt; item)]" doc:name="inputpayload" doc:id="25cc34ad-68fa-4a81-89d6-9281a7765696" variableName="inputpayload" />
+		<logger level="INFO" doc:name="Before DB" doc:id="ef8d43d2-386d-4cb4-a2b4-908ea794c2be" message="-----------------Before DB------------" />
+		<snowflake:select doc:id="b9704091-0354-4e57-a195-5fdaa69bc91c" config-ref="Snowflake_Config" doc:name="verify account" >
+			<snowflake:sql ><![CDATA[select * from bank_customer_data where accountNumber = :ACCOUNTNUMBER]]></snowflake:sql>
+			<snowflake:input-parameters ><![CDATA[#[{
+	"ACCOUNTNUMBER": attributes.uriParams.accountNumber
+}]]]></snowflake:input-parameters>
+		</snowflake:select>
+		<set-variable value="#[payload[0].FULLNAME]" doc:name="FULLNAME" doc:id="3d9c95e2-15a2-4537-a5eb-110c8c8bdf23" variableName="FULLNAME" />
+		<logger level="INFO" doc:name="After DB" doc:id="fb2dff41-ad3d-4a06-a160-8ae8a8509f53" message="---------------After DB------------" />
+		<choice doc:name="Choice" doc:id="b0a36ab9-6c3a-4773-b6c5-1d620eadf40e" >
+			<when expression="#[sizeOf(payload) == 0]" >
+				<ee:transform doc:name="Account doesn't exit" doc:id="2725f5b0-5583-4d5e-aebe-e6e6147bec7f" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"status": "FAILED",
+	"statusCode": 404,
+	"message": "Account doesn't exist please try with correct account number",
+	"accountNumber": vars.accountNumber
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="End Flow" doc:id="3f67ac68-0584-4d24-8513-7617c8087784" message="-------------End Flow----#[payload]" />
+			</when>
+			<otherwise >
+				<set-variable value="#[payload[0].EMAIL]" doc:name="email" doc:id="4a1bd211-bc00-4671-be5e-eeed6f62044c" variableName="email" />
+				<set-variable value="#[payload[0].BANKNAME]" doc:name="bankname" doc:id="73f0f597-fd30-423a-9f6f-a4267d34f888" variableName="bankname" />
+				<set-variable value="#[%dw 2.0&#10;output application/java&#10;&#10;var customer = payload[0] default {}&#10;&#10;---&#10;&quot;&lt;!DOCTYPE html&gt;&#10;&lt;html lang='en'&gt;&#10;&lt;head&gt;&#10;&lt;meta charset='UTF-8'/&gt;&#10;&lt;title&gt;Account Deactivated&lt;/title&gt;&#10;&#10;&lt;style&gt;&#10;body{&#10;    margin:0;&#10;    padding:40px 0;&#10;    background:#f4f7fb;&#10;    font-family:Arial,Helvetica,sans-serif;&#10;}&#10;.container{&#10;    width:680px;&#10;    margin:auto;&#10;    background:#ffffff;&#10;    border-radius:15px;&#10;    overflow:hidden;&#10;    box-shadow:0 8px 30px rgba(0,0,0,.15);&#10;}&#10;.header{&#10;    background:#8B0000;&#10;    color:#fff;&#10;    text-align:center;&#10;    padding:35px;&#10;}&#10;.logo{&#10;    font-size:34px;&#10;    font-weight:bold;&#10;}&#10;.tagline{&#10;    margin-top:8px;&#10;    font-size:15px;&#10;}&#10;.banner{&#10;    text-align:center;&#10;    padding:35px;&#10;}&#10;.icon{&#10;    width:90px;&#10;    height:90px;&#10;    margin:auto;&#10;    background:#d32f2f;&#10;    border-radius:50%;&#10;    color:white;&#10;    line-height:90px;&#10;    font-size:40px;&#10;}&#10;.banner h2{&#10;    color:#b71c1c;&#10;}&#10;.banner p{&#10;    color:#555;&#10;    font-size:16px;&#10;    line-height:28px;&#10;}&#10;.card{&#10;    margin:30px;&#10;    border:1px solid #ddd;&#10;    border-radius:10px;&#10;    overflow:hidden;&#10;}&#10;.card-title{&#10;    background:#f5f5f5;&#10;    color:#8B0000;&#10;    padding:15px;&#10;    font-size:20px;&#10;    font-weight:bold;&#10;}&#10;table{&#10;    width:100%;&#10;    border-collapse:collapse;&#10;}&#10;td{&#10;    padding:15px;&#10;    border-bottom:1px solid #eee;&#10;}&#10;.label{&#10;    font-weight:bold;&#10;    background:#fafafa;&#10;    width:40%;&#10;}&#10;.value{&#10;    text-align:right;&#10;}&#10;.status{&#10;    color:red;&#10;    font-weight:bold;&#10;}&#10;.notice{&#10;    margin:30px;&#10;    padding:20px;&#10;    background:#fff4f4;&#10;    border-left:5px solid red;&#10;    color:#555;&#10;}&#10;.footer{&#10;    background:#f7f7f7;&#10;    text-align:center;&#10;    padding:30px;&#10;    font-size:13px;&#10;    color:#666;&#10;}&#10;.footer b{&#10;    color:#8B0000;&#10;}&#10;&lt;/style&gt;&#10;&#10;&lt;/head&gt;&#10;&#10;&lt;body&gt;&#10;&#10;&lt;div class='container'&gt;&#10;&#10;&lt;div class='header'&gt;&#10;&#10;&lt;div class='logo'&gt;🏦 &quot;&#10;++&#10;(customer.BANKNAME default &quot;REAL BANK&quot;)&#10;++&#10;&quot;&lt;/div&gt;&#10;&#10;&lt;div class='tagline'&gt;&#10;Secure • Trusted • Digital Banking&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='banner'&gt;&#10;&#10;&lt;div class='icon'&gt;🔒&lt;/div&gt;&#10;&#10;&lt;h2&gt;Account Successfully Deactivated&lt;/h2&gt;&#10;&#10;&lt;p&gt;&#10;Dear &lt;b&gt;&quot;&#10;++&#10;upper(customer.FULLNAME default &quot;CUSTOMER&quot;)&#10;++&#10;&quot;&lt;/b&gt;&#10;&#10;&lt;br/&gt;&lt;br/&gt;&#10;&#10;Your account has been successfully deactivated as requested.&#10;&lt;/p&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='card'&gt;&#10;&#10;&lt;div class='card-title'&gt;&#10;Account Information&#10;&lt;/div&gt;&#10;&#10;&lt;table&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Customer Name&lt;/td&gt;&#10;&lt;td class='value'&gt;&quot;&#10;++&#10;upper(customer.FULLNAME default &quot;&quot;)&#10;++&#10;&quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Bank Name&lt;/td&gt;&#10;&lt;td class='value'&gt;&quot;&#10;++&#10;(customer.BANKNAME default &quot;&quot;)&#10;++&#10;&quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Account Number&lt;/td&gt;&#10;&lt;td class='value'&gt;&quot;&#10;++&#10;(customer.ACCOUNTNUMBER default &quot;&quot;)&#10;++&#10;&quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Email&lt;/td&gt;&#10;&lt;td class='value'&gt;&quot;&#10;++&#10;(customer.EMAIL default &quot;&quot;)&#10;++&#10;&quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Mobile Number&lt;/td&gt;&#10;&lt;td class='value'&gt;&quot;&#10;++&#10;(customer.MOBILENUMBER default &quot;&quot;)&#10;++&#10;&quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Status&lt;/td&gt;&#10;&lt;td class='value status'&gt;DEACTIVATED&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Effective Date&lt;/td&gt;&#10;&lt;td class='value'&gt;&quot;&#10;++&#10;(now() as String {format:'dd MMM yyyy hh:mm:ss a'})&#10;++&#10;&quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;/table&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='notice'&gt;&#10;&#10;&lt;b&gt;Security Notice&lt;/b&gt;&#10;&#10;&lt;br/&gt;&lt;br/&gt;&#10;&#10;If you did not request this account deactivation, please contact Real Bank Customer Care immediately.&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='footer'&gt;&#10;    &lt;b&gt;Real Bank&lt;/b&gt;&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    📞 Customer Care: +91 9494207062&#10;    &lt;br/&gt;&#10;    ✉ support.realbank@gmail.com&#10;    &lt;br/&gt;&#10;    🌐 www.realbank.com&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    © 2026 Real Bank. All Rights Reserved.&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    This is an automated notification. Please do not reply to this email.&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/body&gt;&#10;&#10;&lt;/html&gt;&quot;]" doc:name="emailBody" doc:id="f8ed344c-b930-4998-8bcc-3c11fe2870e5" variableName="emailBody" />
+				<parse-template doc:name="creating html templete with user data for user email conformation " doc:id="e4f32b41-5123-4094-a0e4-686a29706e39">
+					<content>&lt;html&gt;
+&lt;head&gt;
+    &lt;style&gt;
+        body {
+            text-align: center;
+        }
+
+        table {
+            margin: 0 auto;
+            height: 20vh;
+            width: 40vh;
+        }
+
+        h1 {
+            color: green;
+        }
+        h6 {
+            color: red;
+        }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h3&gt;#[vars.emailBody]&lt;/h3&gt;
+    
+&lt;/body&gt;
+&lt;/html&gt;</content>
+				</parse-template>
+				<email:send doc:name="email send to the respective users with the respective bank data" doc:id="f8c2935a-6b0f-423e-81d6-8b6788bbc3a3" config-ref="Email_SMTP" fromAddress="narsingbeesetti06@gmail.com" subject='#["Account deactived successfully in -" ++ vars.bankName]'>
+					<email:to-addresses>
+						<email:to-address value="#[vars.email]" />
+						<email:to-address value="support.realbank@gmail.com" />
+						<email:to-address value="narsingbeesetti06@gmail.com" />
+					</email:to-addresses>
+					<email:body contentType="text/html" encoding="UTF-8" />
+				</email:send>
+				<snowflake:delete doc:name="Delete accountNumber from the bank database as reuested by user or bank management as the user is no longer" doc:id="56e16370-dc5e-44f3-937b-baf5a336343f" config-ref="Snowflake_Config">
+					<snowflake:sql><![CDATA[delete from bank_customer_data where ACCOUNTNUMBER = :accountNumber]]></snowflake:sql>
+					<snowflake:input-parameters><![CDATA[#[{
+	"accountNumber": vars.accountNumber
+}]]]></snowflake:input-parameters>
+				</snowflake:delete>
+				<ee:transform doc:name="response" doc:id="4dcccfcb-8476-4195-ba68-e77467f2314e" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	bank_account_detailes: {
+		"account_data": {
+			"message": "The account has been deactivated successfully, and an email has been sent to the user.",
+			"accountNumber": vars.accountNumber
+		}
+	}
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="End Flow" doc:id="3c7414a8-7e45-4845-8dc1-210396b278d8" message="#[payload]" />
+			</otherwise>
+		</choice>
+    </flow>
+    <flow name="patch:\accounts\(accountNumber):application\json:dream-bank-sapi-config">
+		<logger level="INFO" doc:name="Start Flow update account data flow" doc:id="8bbce5f8-b862-4b82-814e-1b3c5a1b65bd" message="---------------------------Start Flow update account data flow---------------------------" />
+		<set-variable value="#[attributes.uriParams.accountNumber as String]" doc:name="accountNumber" doc:id="230afb49-defb-483d-9d8d-64c662698512" variableName="accountNumber" />
+		<set-variable value="#[payload]" doc:name="inputpayload" doc:id="b7406209-a196-4dd5-846a-bdd92dcd7a2e" variableName="inputpayload" />
+		<logger level="INFO" doc:name="Before DB" doc:id="78f2dc61-4cdb-460d-abc4-d80b0b76e5f5" message="--------------Before DB-----------" />
+		<snowflake:select doc:name="Verify account in DB" doc:id="04128e6d-81fa-44b3-b602-507a056b6d32" config-ref="Snowflake_Config" >
+			<snowflake:sql ><![CDATA[select * from bank_customer_data where accountnumber = :accountNumber]]></snowflake:sql>
+			<snowflake:input-parameters ><![CDATA[#[{
+	"accountNumber": vars.accountNumber
+	}]]]></snowflake:input-parameters>
+		</snowflake:select>
+		<set-variable value="#[payload.FULLNAME]" doc:name="FULLNAME" doc:id="2bcc239a-9ba9-4928-9ce3-e571489b98fa" variableName="FULLNAME" />
+		<logger level="INFO" doc:name="After DB" doc:id="252e2652-38c0-411f-ac68-39a3a1ca21fc" message="-------------------After DB-----------#[payload]" />
+		<choice doc:name="Choice" doc:id="e84087a9-0ea7-4f87-8c74-3574e60f9f0f" >
+			<when expression="#[sizeOf(payload) == 1 and payload.FULLNAME[0] == vars.inputpayload.FullName and payload.MOBILENUMBER[0] == vars.inputpayload.mobileNumber and payload.ADDRESS[0] == vars.inputpayload.address]" >
+				<ee:transform doc:name="Account Existed" doc:id="57a6169b-a8ca-43fb-8824-8520212c4e1f" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Status": "Failed",
+	"StatusCode": 200,
+    message: "Requested data is already updated with the same details",
+    accountNumber: vars.accountNumber,
+    account_data: {
+    	"fullname": payload.FULLNAME[0],
+    	"mobilenumber": payload.MOBILENUMBER[0],
+    	"address": payload.ADDRESS[0],
+    	"accountStatus": payload.STATUS[0],
+    	"accountCreatedOn": payload.CREATED_AT[0]
+    }
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="End Flow" doc:id="8b530daf-5260-4d81-84d1-d295569ab46f" message="--------------------End Flow--------------#[payload]" />
+			</when>
+			<otherwise >
+				<set-variable value="#[payload.BANKNAME[0]]" doc:name="BANKNAME" doc:id="4ed31d7d-743e-4b24-b5e3-da0e9383c5f9" variableName="BANKNAME" />
+				<set-variable value="#[payload.EMAIL[0]]" doc:name="email" doc:id="b530575b-e9d6-4ce5-823c-007692cde295" variableName="email" />
+				<set-variable value="#[payload.ADHARNUMBER[0]]" doc:name="adharNumber" doc:id="1bff315b-1b37-4af5-a92a-d913f3b8868b" variableName="adharNumber"/>
+				<snowflake:update doc:name="Update requested data by the user" doc:id="0605ea8d-c435-4654-a68c-c526234cddf2" config-ref="Snowflake_Config" target="dbresponse">
+					<snowflake:sql><![CDATA[UPDATE bank_customer_data
+SET FULLNAME =:FullName,
+    ADDRESS =:address,
+    MOBILENUMBER =:mobileNumber
+WHERE ACCOUNTNUMBER =:accountNumber]]></snowflake:sql>
+					<snowflake:input-parameters><![CDATA[#[%dw 2.0
+output application/java
+---
+{
+	FullName: vars.inputpayload.FullName,
+	address: vars.inputpayload.address,
+	mobileNumber: vars.inputpayload.mobileNumber,
+	accountNumber: vars.accountNumber
+}]]]></snowflake:input-parameters>
+				</snowflake:update>
+				<ee:transform doc:name="After update databse then the output transform from array of object to json" doc:id="b42f4073-067d-49ab-b717-223ba5f0d324" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<set-variable value="#[%dw 2.0&#10;output application/java&#10;&#10;---&#10;&quot;&lt;!DOCTYPE html&gt;&#10;&lt;html&gt;&#10;&lt;head&gt;&#10;&lt;meta charset='UTF-8'&gt;&#10;&#10;&lt;style&gt;&#10;body {&#10;    margin: 0;&#10;    padding: 40px 0;&#10;    background: #f4f7fb;&#10;    font-family: Arial, Helvetica, sans-serif;&#10;}&#10;&#10;.container {&#10;    width: 680px;&#10;    margin: auto;&#10;    background: #ffffff;&#10;    border-radius: 16px;&#10;    overflow: hidden;&#10;    box-shadow: 0 12px 35px rgba(0, 0, 0, .12);&#10;}&#10;&#10;.header {&#10;    background: linear-gradient(90deg, #0047AB, #0066CC);&#10;    color: white;&#10;    text-align: center;&#10;    padding: 35px;&#10;}&#10;&#10;.logo {&#10;    font-size: 32px;&#10;    font-weight: bold;&#10;}&#10;&#10;.tagline {&#10;    margin-top: 8px;&#10;    font-size: 14px;&#10;    opacity: .9;&#10;}&#10;&#10;.success {&#10;    text-align: center;&#10;    padding: 35px 30px;&#10;}&#10;&#10;.icon {&#10;    width: 90px;&#10;    height: 90px;&#10;    line-height: 90px;&#10;    margin: auto;&#10;    border-radius: 50%;&#10;    background: #16a34a;&#10;    color: white;&#10;    font-size: 42px;&#10;}&#10;&#10;.success h2 {&#10;    color: #16a34a;&#10;    margin-top: 20px;&#10;    margin-bottom: 10px;&#10;}&#10;&#10;.success p {&#10;    color: #555;&#10;    line-height: 1.6;&#10;}&#10;&#10;.card {&#10;    margin: 30px;&#10;    border: 1px solid #e5e7eb;&#10;    border-radius: 12px;&#10;    overflow: hidden;&#10;}&#10;&#10;.card-title {&#10;    background: #f8fafc;&#10;    color: #003366;&#10;    font-size: 20px;&#10;    font-weight: bold;&#10;    padding: 18px;&#10;}&#10;&#10;table {&#10;    width: 100%;&#10;    border-collapse: collapse;&#10;}&#10;&#10;td {&#10;    padding: 16px;&#10;    border-bottom: 1px solid #ececec;&#10;}&#10;&#10;.label {&#10;    width: 40%;&#10;    font-weight: bold;&#10;    color: #555;&#10;}&#10;&#10;.value {&#10;    color: #111827;&#10;}&#10;&#10;.status {&#10;    color: #16a34a;&#10;    font-weight: bold;&#10;}&#10;&#10;.notice {&#10;    margin: 30px;&#10;    background: #eef7ff;&#10;    border-left: 6px solid #2196F3;&#10;    padding: 20px;&#10;    border-radius: 8px;&#10;    color: #444;&#10;}&#10;&#10;.footer {&#10;    background: #f8fafc;&#10;    text-align: center;&#10;    padding: 30px;&#10;    font-size: 13px;&#10;    color: #666;&#10;}&#10;&#10;.footer b {&#10;    color: #003366;&#10;}&#10;&lt;/style&gt;&#10;&#10;&lt;/head&gt;&#10;&#10;&lt;body&gt;&#10;&#10;&lt;div class='container'&gt;&#10;&#10;&lt;div class='header'&gt;&#10;    &lt;div class='bank'&gt;&#10;        🏦 &quot; ++ (vars.BANKNAME default &quot;N/A&quot;) ++ &quot;&#10;    &lt;/div&gt;&#10;    &lt;div class='tagline'&gt;&#10;        Safe • Secure • Digital Banking&#10;    &lt;/div&gt;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='success'&gt;&#10;    &lt;div class='icon'&gt;✓&lt;/div&gt;&#10;    &lt;h2&gt;Account Updated Successfully&lt;/h2&gt;&#10;    &lt;p&gt;&#10;        Dear &lt;b&gt;&quot; ++ (vars.inputpayload.FullName default &quot;Customer&quot;) ++ &quot;&lt;/b&gt;,&#10;        &lt;br/&gt;&lt;br/&gt;&#10;        Your account information has been successfully updated in our banking system.&#10;    &lt;/p&gt;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='card'&gt;&#10;    &lt;div class='card-title'&gt;Updated Account Details&lt;/div&gt;&#10;    &lt;table&gt;&#10;        &lt;tr&gt;&#10;            &lt;td class='label'&gt;Reference Number&lt;/td&gt;&#10;            &lt;td class='value'&gt;&quot; ++ (vars.transactionId default &quot;RBK-&quot; ++ (now() as String {format: &quot;yyyyMMddHHmmss&quot;})) ++ &quot;&lt;/td&gt;&#10;        &lt;/tr&gt;&#10;        &lt;tr&gt;&#10;            &lt;td class='label'&gt;Account Number&lt;/td&gt;&#10;            &lt;td class='value'&gt;&quot; ++ (vars.accountNumber default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;        &lt;/tr&gt;&#10;        &lt;tr&gt;&#10;            &lt;td class='label'&gt;Customer Name&lt;/td&gt;&#10;            &lt;td class='value'&gt;&quot; ++ (vars.inputpayload.FullName default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;        &lt;/tr&gt;&#10;        &lt;tr&gt;&#10;            &lt;td class='label'&gt;Mobile Number&lt;/td&gt;&#10;            &lt;td class='value'&gt;&quot; ++ (vars.inputpayload.mobileNumber default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;        &lt;/tr&gt;&#10;        &lt;tr&gt;&#10;            &lt;td class='label'&gt;Email Address&lt;/td&gt;&#10;            &lt;td class='value'&gt;&quot; ++ (vars.email default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;        &lt;/tr&gt;&#10;        &lt;tr&gt;&#10;            &lt;td class='label'&gt;Aadhaar&lt;/td&gt;&#10;            &lt;td class='value'&gt;XXXX XXXX &quot; ++ ((vars.adharNumber as String default &quot;XXXX XXXX&quot;)[-4 to -1]) ++ &quot;&lt;/td&gt;&#10;        &lt;/tr&gt;&#10;        &lt;tr&gt;&#10;            &lt;td class='label'&gt;Address&lt;/td&gt;&#10;            &lt;td class='value'&gt;&quot; ++ (vars.inputpayload.address default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;        &lt;/tr&gt;&#10;        &lt;tr&gt;&#10;            &lt;td class='label'&gt;Bank Name&lt;/td&gt;&#10;            &lt;td class='value'&gt;&quot; ++ (vars.BANKNAME default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;        &lt;/tr&gt;&#10;        &lt;tr&gt;&#10;            &lt;td class='label'&gt;Updated On&lt;/td&gt;&#10;            &lt;td class='value'&gt;&quot; ++ (now() as String {format: &quot;dd MMM yyyy hh:mm:ss a&quot;}) ++ &quot;&lt;/td&gt;&#10;        &lt;/tr&gt;&#10;        &lt;tr&gt;&#10;            &lt;td class='label'&gt;Status&lt;/td&gt;&#10;            &lt;td class='value status'&gt;SUCCESS&lt;/td&gt;&#10;        &lt;/tr&gt;&#10;    &lt;/table&gt;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='notice'&gt;&#10;    &lt;b&gt;🔒 Security Notice&lt;/b&gt;&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    If you did not request this account update, please contact our 24×7 Customer Care immediately. Protect your banking credentials and never share your OTP, PIN, CVV, or passwords with anyone.&#10;&lt;/div&gt;&#10;&#10;&lt;div class='footer'&gt;&#10;    &lt;b&gt;Real Bank&lt;/b&gt;&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    📞 Customer Care: +91 9494207062&#10;    &lt;br/&gt;&#10;    ✉ support.realbank@gmail.com&#10;    &lt;br/&gt;&#10;    🌐 www.realbank.com&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    © 2026 Real Bank. All Rights Reserved.&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    This is an automated notification. Please do not reply to this email.&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/body&gt;&#10;&#10;&lt;/html&gt;&quot;]" doc:name="emailBody" doc:id="83396d84-7afb-4877-8e5d-5ba45a821dd4" variableName="emailBody" />
+				<set-variable value='"success"' doc:name="emailStatus" doc:id="f5be0e79-16e3-42b6-8e41-a3c2f75cdf32" variableName="emailStatus"/>
+				<logger level="INFO" doc:name="before sending an email" doc:id="b0135269-3b7f-4086-b471-1745ffe4be1f" message='#["sending Email to: " ++ vars.email]'/>
+				<try doc:name="Try" doc:id="2d30bbaa-e30c-407b-a26f-7250800aa728">
+					<email:send doc:name="email send to the respective users with the respective bank data" doc:id="c836a460-72a7-4b36-bdbf-8c401cf2acc9" config-ref="Email_SMTP" fromAddress="narsingbeesetti06@gmail.com" subject='#["Account detailes updated successfully - " ++ vars.BANKNAME]'>
+					<email:to-addresses>
+						<email:to-address value="#[vars.email]" />
+							<email:to-address value="narsingbeesetti06@gmail.com" />
+							<email:to-address value="support.realbank@gmail.com" />
+					</email:to-addresses>
+					<email:body contentType="text/html" encoding="UTF-8">
+						<email:content><![CDATA[#[vars.emailBody]]]></email:content>
+					</email:body>
+				</email:send>
+					<error-handler >
+						<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="5d327d27-661d-4391-b780-4a063c7ecb8a" type="ANY">
+							<logger level="INFO" doc:name="ERROR" doc:id="4778014d-cba6-4bd5-a9e9-0410cc6b1ead" message='#[error.description]'/>
+						</on-error-continue>
+					</error-handler>
+				</try>
+				<ee:transform doc:name="response" doc:id="e6a760db-8ea3-46d4-bd56-158e7f739014" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  bank_account_detailes: {
+    account_data: {
+      status: "Success",
+      statusCode: 200,
+      message:
+        if ((vars.emailStatus default "SUCCESS") == "SUCCESS")
+          "The account has been updated successfully and email sent successfully."
+        else
+          "The account has been updated successfully but email sending failed.",
+      accountNumber: vars.accountNumber,
+      user_input_data: vars.inputpayload
+    }
+  }
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="End Flow" doc:id="a635ab00-503c-43ac-bb4c-b443b5a66bb6" message="-------------------End Flow----------------------#[payload]" />
+			</otherwise>
+		</choice>
+    </flow>
+    <flow name="get:\accounts:dream-bank-sapi-config">
+		<logger level="INFO" doc:name="Start Flow" doc:id="4dc7a4f6-a64d-4506-9bc5-f2f0b6255ccb" message="-------------------------------Start Flow----------------------------------" />
+		<set-variable value="#[attributes.queryParams.status]" doc:name="status" doc:id="1486d352-c37e-4e27-98d7-999469209e66" variableName="status" />
+		<logger level="INFO" doc:name="Before DB" doc:id="1e8e0d94-7136-497c-a9f3-5c1c791a1a36" message="-----------------Before DB--------------" />
+		<snowflake:select doc:name="verify account" doc:id="e2241d60-762f-4a68-b1bc-4722bbd1631e" config-ref="Snowflake_Config" >
+			<snowflake:sql ><![CDATA[SELECT * 
+FROM bank_customer_data 
+WHERE STATUS = :status]]></snowflake:sql>
+			<snowflake:input-parameters ><![CDATA[#[{ status: vars.status }]]]></snowflake:input-parameters>
+		</snowflake:select>
+		<logger level="INFO" doc:name="After DB" doc:id="af6cb4bd-6007-495f-969a-0a7b30df3773" message="--------------After DB--------------" />
+		<set-variable value="#[%dw 2.0&#10;output application/json&#10;var inp = []&#10;---&#10;inp&lt;&lt;payload reduce ((item, accumulator) -&gt; item)]" doc:name="inputpayload" doc:id="783de180-7906-49b7-bd0c-4de0a23ad86b" variableName="inputpayload" />
+		<choice doc:name="Choice" doc:id="24782217-7212-4581-87b7-aab9f7b0e277" >
+			<when expression='#[vars.status == "INACTIVE"]' >
+				<set-variable value="#[payload.EMAIL[0]]" doc:name="email" doc:id="dc0abfc5-1e65-4463-a24e-a2f788168411" variableName="email" />
+				<set-variable value="#[payload.BANKNAME[0]]" doc:name="bankname" doc:id="7c19122a-8834-4800-9f4c-8f224587ea72" variableName="bankname" />
+				<choice doc:name="Choice" doc:id="6ca5b27d-b665-4593-9439-ca875a640739" >
+					<when expression="#[vars.inputpayload.ACCOUNTNUMBER[0] == null]" >
+						<ee:transform doc:name="account does not exist in database" doc:id="e96af3ce-34f2-46c7-accb-61f9d3548232" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"bank_account_detailes": {
+		"account_status": {
+			"status": "FAILED",
+			"statusCode": "404",
+			"account_status":vars.status,
+			"message": "An account does not exists with the provided customer details. Please try with new details. If you are a new customer, please validate your information."	
+		}
+	}
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<logger level="INFO" doc:name="The customer account deatils does not  existed in DB" doc:id="910812f8-d948-4857-b185-f5ae70f98ee0" message="----------------------------The customer account deatils does not  existed in DB--------------------------" />
+					</when>
+					<otherwise >
+						<set-variable value="#[%dw 2.0&#10;output application/java&#10;&#10;---&#10;&quot;&lt;!DOCTYPE html&gt;&#10;&lt;html&gt;&#10;&lt;head&gt;&#10;&lt;meta charset='UTF-8'&gt;&#10;&#10;&lt;style&gt;&#10;body {&#10;    margin: 0;&#10;    padding: 0;&#10;    background: #edf2f7;&#10;    font-family: 'Segoe UI', Arial, sans-serif;&#10;}&#10;&#10;.wrapper {&#10;    width: 100%;&#10;    padding: 30px 0;&#10;}&#10;&#10;.container {&#10;    max-width: 760px;&#10;    margin: auto;&#10;    background: white;&#10;    border-radius: 18px;&#10;    overflow: hidden;&#10;    box-shadow: 0 10px 40px rgba(0, 0, 0, .12);&#10;}&#10;&#10;.header {&#10;    background: linear-gradient(135deg, #003366, #0056b3, #007bff);&#10;    padding: 35px;&#10;    color: white;&#10;}&#10;&#10;.bank {&#10;    font-size: 34px;&#10;    font-weight: bold;&#10;}&#10;&#10;.tag {&#10;    margin-top: 5px;&#10;    font-size: 15px;&#10;    opacity: .9;&#10;}&#10;&#10;.hero {&#10;    padding: 35px;&#10;    background: #f8fbff;&#10;}&#10;&#10;.hero h2 {&#10;    margin: 0;&#10;    color: #003366;&#10;}&#10;&#10;.hero p {&#10;    line-height: 28px;&#10;    color: #666;&#10;}&#10;&#10;.card {&#10;    margin: 30px;&#10;    border-radius: 15px;&#10;    overflow: hidden;&#10;    border: 1px solid #dde5ee;&#10;}&#10;&#10;.card-title {&#10;    background: #003366;&#10;    padding: 18px;&#10;    color: white;&#10;    font-size: 18px;&#10;    font-weight: bold;&#10;}&#10;&#10;table {&#10;    width: 100%;&#10;    border-collapse: collapse;&#10;}&#10;&#10;td {&#10;    padding: 16px;&#10;    border-bottom: 1px solid #ececec;&#10;    font-size: 15px;&#10;}&#10;&#10;td:first-child {&#10;    font-weight: bold;&#10;    background: #fafafa;&#10;    width: 40%;&#10;}&#10;&#10;.balance {&#10;    font-size: 28px;&#10;    font-weight: bold;&#10;    color: #009933;&#10;}&#10;&#10;.status {&#10;    background: #d9f7e8;&#10;    color: #0b8a3b;&#10;    padding: 6px 14px;&#10;    border-radius: 30px;&#10;    display: inline-block;&#10;    font-weight: bold;&#10;}&#10;&#10;.info {&#10;    display: flex;&#10;    gap: 18px;&#10;    padding: 0 25px 25px;&#10;}&#10;&#10;.box {&#10;    flex: 1;&#10;    background: #f7fbff;&#10;    padding: 22px;&#10;    border-radius: 15px;&#10;    text-align: center;&#10;    border: 1px solid #d7e8ff;&#10;}&#10;&#10;.box h3 {&#10;    margin: 10px 0;&#10;    color: #003366;&#10;}&#10;&#10;.box p {&#10;    font-size: 13px;&#10;    color: #666;&#10;    line-height: 22px;&#10;}&#10;&#10;.security {&#10;    margin: 25px;&#10;    padding: 20px;&#10;    background: #fff8ea;&#10;    border-left: 5px solid orange;&#10;    border-radius: 10px;&#10;}&#10;&#10;.security h3 {&#10;    margin-top: 0;&#10;    color: #c67d00;&#10;}&#10;&#10;.footer {&#10;    background: #003366;&#10;    color: white;&#10;    text-align: center;&#10;    padding: 35px;&#10;    font-size: 13px;&#10;    line-height: 24px;&#10;}&#10;&#10;.footer a {&#10;    color: #fff;&#10;    text-decoration: none;&#10;}&#10;&lt;/style&gt;&#10;&#10;&lt;/head&gt;&#10;&#10;&lt;body&gt;&#10;&#10;&lt;div class='wrapper'&gt;&#10;&#10;&lt;div class='container'&gt;&#10;&#10;&lt;div class='header'&gt;&#10;&#10;&lt;div class='bank'&gt;&#10;🏦 &quot; ++ (payload.BANKNAME[0] default &quot;N/A&quot;) ++ &quot;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='tag'&gt;&#10;Secure • Trusted • Digital Banking&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='hero'&gt;&#10;&#10;&lt;h2&gt;&#10;Welcome,&#10;&lt;b&gt;&quot; ++ (upper(vars.inputpayload.FULLNAME[0]) default &quot;N/A&quot;) ++ &quot;&lt;/b&gt; 👋&#10;&lt;/h2&gt;&#10;&#10;&lt;p&gt;&#10;Congratulations!&#10;Please find your account details below.&#10;Thank you for choosing &lt;b&gt;Real Bank&lt;/b&gt; as your trusted financial partner.&#10;&lt;/p&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='card'&gt;&#10;&#10;&lt;div class='card-title'&gt;&#10;💳 Account Details&#10;&lt;/div&gt;&#10;&#10;&lt;table&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Account Holder&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (payload.FULLNAME[0] default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Bank Name&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (vars.bankname default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Account Number&lt;/td&gt;&#10;&lt;td&gt;&lt;b&gt;&quot; ++ (vars.inputpayload.ACCOUNTNUMBER[0] default &quot;N/A&quot;) ++ &quot;&lt;/b&gt;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Date of Birth&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (vars.inputpayload.DATEOFBIRTH[0] default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Mobile Number&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (vars.inputpayload.MOBILENUMBER[0] default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Email Address&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (vars.email default &quot;customer@email.com&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Aadhaar&lt;/td&gt;&#10;&lt;td&gt;XXXX XXXX &quot; ++ ((vars.inputpayload.ADHARNUMBER[0] as String default &quot;N/A&quot;)[-4 to -1]) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Address&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (vars.inputpayload.ADDRESS[0] default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Status&lt;/td&gt;&#10;&lt;td&gt;&lt;span class='status'&gt;&quot; ++ (vars.status default &quot;N/A&quot;) ++ &quot;&lt;/span&gt;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Available Balance&lt;/td&gt;&#10;&lt;td class='balance'&gt;₹ &quot; ++ (vars.inputpayload.BALANCE[0] default &quot;0.00&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;/table&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='security'&gt;&#10;&#10;&lt;h3&gt;&#10;🔒 Banking Security&#10;&lt;/h3&gt;&#10;&#10;&lt;ul&gt;&#10;&lt;li&gt;Never share your ATM PIN.&lt;/li&gt;&#10;&lt;li&gt;Never share OTP with anyone.&lt;/li&gt;&#10;&lt;li&gt;Real Bank never asks for passwords.&lt;/li&gt;&#10;&lt;li&gt;Enable SMS &amp; Email transaction alerts.&lt;/li&gt;&#10;&lt;li&gt;Report fraudulent transactions immediately.&lt;/li&gt;&#10;&lt;/ul&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='info'&gt;&#10;&#10;&lt;div class='box'&gt;&#10;📱&#10;&lt;h3&gt;Mobile Banking&lt;/h3&gt;&#10;&lt;p&gt;&#10;Transfer money instantly.&#10;Manage debit cards.&#10;Recharge &amp; bill payments.&#10;&lt;/p&gt;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='box'&gt;&#10;🌐&#10;&lt;h3&gt;Internet Banking&lt;/h3&gt;&#10;&lt;p&gt;&#10;View statements.&#10;Download reports.&#10;Manage beneficiaries.&#10;&lt;/p&gt;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='box'&gt;&#10;☎️&#10;&lt;h3&gt;24×7 Support&lt;/h3&gt;&#10;&lt;p&gt;&#10;Phone: +91 9494207062&#10;&lt;br&gt;&lt;br&gt;&#10;Email: narsingbeesetti22@gmail.com&#10;&lt;/p&gt;&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='footer'&gt;&#10;    &lt;b&gt;Real Bank&lt;/b&gt;&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    📞 Customer Care: +91 9494207062&#10;    &lt;br/&gt;&#10;    ✉ support.realbank@gmail.com&#10;    &lt;br/&gt;&#10;    🌐 www.realbank.com&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    © 2026 Real Bank. All Rights Reserved.&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    This is an automated notification. Please do not reply to this email.&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/body&gt;&#10;&#10;&lt;/html&gt;&quot;]" doc:name="emailBody" doc:id="dc61820d-7a24-497e-8c50-cb9f01d4a98b" variableName="emailBody" />
+						<email:send doc:name="email send to the respective users with the respective bank data" doc:id="3b072656-dba7-4dab-9f38-9dbdf59b0701" config-ref="Email_SMTP" fromAddress="narsingbeesetti06@gmail.com" subject='#["Your Account detailes - " ++ vars.bankname as String]' >
+							<email:to-addresses >
+								<email:to-address value="#[vars.email]" />
+								<email:to-address value="support.realbank@gmail.com" />
+								<email:to-address value="narsingbeesetti06@gmail.com" />
+							</email:to-addresses>
+							<email:body contentType="text/html" encoding="UTF-8" >
+								<email:content ><![CDATA[#[vars.emailBody]]]></email:content>
+							</email:body>
+						</email:send>
+						<ee:transform doc:name="response" doc:id="d3678c94-cead-450f-bd94-c56c2f4e5b1f">
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  bankDetails: {
+    account_data: {
+	  "status": "Success",
+	  "statusCode": 200,
+      "message": "The account details email has been sent successfully to the user.",
+      "data": vars.inputpayload map (item) -> item - "TRANSACTIONS"  }
+  }
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</otherwise>
+				</choice>
+				<logger level="INFO" doc:name="End Flow" doc:id="994c1756-4c1c-4d26-926e-83e57603ad2f" message="----------------------------End Flow------------------------#[payload]" />
+			</when>
+			<when expression='#[vars.status == "ACTIVE"]' >
+				<set-variable value="#[payload.EMAIL[0]]" doc:name="email" doc:id="b4ea2acc-7ea1-48e6-ba51-e815ebd53bcc" variableName="email" />
+				<set-variable value="#[payload.BANKNAME[0]]" doc:name="bankname" doc:id="03b7c633-d4a5-4580-918d-3478061dd330" variableName="bankname" />
+				<choice doc:name="Choice" doc:id="e4401e1d-f513-4775-acc3-ceb9180cdefd" >
+					<when expression="#[vars.inputpayload.ACCOUNTNUMBER[0] == null]" >
+						<ee:transform doc:name="account does not exist in database" doc:id="0c8c2f7f-fac5-4a8b-82e4-38630cdd53fb" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"bank_account_detailes": {
+		"account_status": {
+			"status": "FAILED",
+			"statusCode": "409",
+			"account_status": vars.status,
+			"message": "An account does not exists with the provided customer details. Please try with new details. If you are a new customer, please validate your information."	
+		}
+	}
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<logger level="INFO" doc:name="The customer account deatils does not  existed in DB" doc:id="5e4d770d-1bca-43ae-a27b-704c1ad9dbbd" message="----------------------------The customer account deatils does not  existed in DB--------------------------" />
+					</when>
+					<otherwise >
+						<set-variable value="#[%dw 2.0&#10;output application/java&#10;&#10;---&#10;&quot;&lt;!DOCTYPE html&gt;&#10;&lt;html&gt;&#10;&lt;head&gt;&#10;&lt;meta charset='UTF-8'&gt;&#10;&#10;&lt;style&gt;&#10;body {&#10;    margin: 0;&#10;    padding: 0;&#10;    background: #edf2f7;&#10;    font-family: 'Segoe UI', Arial, sans-serif;&#10;}&#10;&#10;.wrapper {&#10;    width: 100%;&#10;    padding: 30px 0;&#10;}&#10;&#10;.container {&#10;    max-width: 760px;&#10;    margin: auto;&#10;    background: white;&#10;    border-radius: 18px;&#10;    overflow: hidden;&#10;    box-shadow: 0 10px 40px rgba(0, 0, 0, .12);&#10;}&#10;&#10;.header {&#10;    background: linear-gradient(135deg, #003366, #0056b3, #007bff);&#10;    padding: 35px;&#10;    color: white;&#10;}&#10;&#10;.bank {&#10;    font-size: 34px;&#10;    font-weight: bold;&#10;}&#10;&#10;.tag {&#10;    margin-top: 5px;&#10;    font-size: 15px;&#10;    opacity: .9;&#10;}&#10;&#10;.hero {&#10;    padding: 35px;&#10;    background: #f8fbff;&#10;}&#10;&#10;.hero h2 {&#10;    margin: 0;&#10;    color: #003366;&#10;}&#10;&#10;.hero p {&#10;    line-height: 28px;&#10;    color: #666;&#10;}&#10;&#10;.card {&#10;    margin: 30px;&#10;    border-radius: 15px;&#10;    overflow: hidden;&#10;    border: 1px solid #dde5ee;&#10;}&#10;&#10;.card-title {&#10;    background: #003366;&#10;    padding: 18px;&#10;    color: white;&#10;    font-size: 18px;&#10;    font-weight: bold;&#10;}&#10;&#10;table {&#10;    width: 100%;&#10;    border-collapse: collapse;&#10;}&#10;&#10;td {&#10;    padding: 16px;&#10;    border-bottom: 1px solid #ececec;&#10;    font-size: 15px;&#10;}&#10;&#10;td:first-child {&#10;    font-weight: bold;&#10;    background: #fafafa;&#10;    width: 40%;&#10;}&#10;&#10;.balance {&#10;    font-size: 28px;&#10;    font-weight: bold;&#10;    color: #009933;&#10;}&#10;&#10;.status {&#10;    background: #d9f7e8;&#10;    color: #0b8a3b;&#10;    padding: 6px 14px;&#10;    border-radius: 30px;&#10;    display: inline-block;&#10;    font-weight: bold;&#10;}&#10;&#10;.info {&#10;    display: flex;&#10;    gap: 18px;&#10;    padding: 0 25px 25px;&#10;}&#10;&#10;.box {&#10;    flex: 1;&#10;    background: #f7fbff;&#10;    padding: 22px;&#10;    border-radius: 15px;&#10;    text-align: center;&#10;    border: 1px solid #d7e8ff;&#10;}&#10;&#10;.box h3 {&#10;    margin: 10px 0;&#10;    color: #003366;&#10;}&#10;&#10;.box p {&#10;    font-size: 13px;&#10;    color: #666;&#10;    line-height: 22px;&#10;}&#10;&#10;.security {&#10;    margin: 25px;&#10;    padding: 20px;&#10;    background: #fff8ea;&#10;    border-left: 5px solid orange;&#10;    border-radius: 10px;&#10;}&#10;&#10;.security h3 {&#10;    margin-top: 0;&#10;    color: #c67d00;&#10;}&#10;&#10;.footer {&#10;    background: #003366;&#10;    color: white;&#10;    text-align: center;&#10;    padding: 35px;&#10;    font-size: 13px;&#10;    line-height: 24px;&#10;}&#10;&#10;.footer a {&#10;    color: #fff;&#10;    text-decoration: none;&#10;}&#10;&lt;/style&gt;&#10;&#10;&lt;/head&gt;&#10;&#10;&lt;body&gt;&#10;&#10;&lt;div class='wrapper'&gt;&#10;&#10;&lt;div class='container'&gt;&#10;&#10;&lt;div class='header'&gt;&#10;&#10;&lt;div class='bank'&gt;&#10;🏦 &quot; ++ (payload.BANKNAME[0] default &quot;N/A&quot;) ++ &quot;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='tag'&gt;&#10;Secure • Trusted • Digital Banking&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='hero'&gt;&#10;&#10;&lt;h2&gt;&#10;Welcome,&#10;&lt;b&gt;&quot; ++ (upper(vars.inputpayload.FULLNAME[0]) default &quot;N/A&quot;) ++ &quot;&lt;/b&gt; 👋&#10;&lt;/h2&gt;&#10;&#10;&lt;p&gt;&#10;Congratulations!&#10;Please find your account details below.&#10;Thank you for choosing &lt;b&gt;Real Bank&lt;/b&gt; as your trusted financial partner.&#10;&lt;/p&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='card'&gt;&#10;&#10;&lt;div class='card-title'&gt;&#10;💳 Account Details&#10;&lt;/div&gt;&#10;&#10;&lt;table&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Account Holder&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (payload.FULLNAME[0] default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Bank Name&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (vars.bankname default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Account Number&lt;/td&gt;&#10;&lt;td&gt;&lt;b&gt;&quot; ++ (vars.inputpayload.ACCOUNTNUMBER[0] default &quot;N/A&quot;) ++ &quot;&lt;/b&gt;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Date of Birth&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (vars.inputpayload.DATEOFBIRTH[0] default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Mobile Number&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (vars.inputpayload.MOBILENUMBER[0] default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Email Address&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (vars.email default &quot;customer@email.com&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Aadhaar&lt;/td&gt;&#10;&lt;td&gt;XXXX XXXX &quot; ++ ((vars.inputpayload.ADHARNUMBER[0] as String default &quot;N/A&quot;)[-4 to -1]) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Address&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (vars.inputpayload.ADDRESS[0] default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Status&lt;/td&gt;&#10;&lt;td&gt;&lt;span class='status'&gt;&quot; ++ (vars.status default &quot;N/A&quot;) ++ &quot;&lt;/span&gt;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Available Balance&lt;/td&gt;&#10;&lt;td class='balance'&gt;₹ &quot; ++ (vars.inputpayload.BALANCE[0] default &quot;0.00&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;/table&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='security'&gt;&#10;&#10;&lt;h3&gt;&#10;🔒 Banking Security&#10;&lt;/h3&gt;&#10;&#10;&lt;ul&gt;&#10;&lt;li&gt;Never share your ATM PIN.&lt;/li&gt;&#10;&lt;li&gt;Never share OTP with anyone.&lt;/li&gt;&#10;&lt;li&gt;Real Bank never asks for passwords.&lt;/li&gt;&#10;&lt;li&gt;Enable SMS &amp; Email transaction alerts.&lt;/li&gt;&#10;&lt;li&gt;Report fraudulent transactions immediately.&lt;/li&gt;&#10;&lt;/ul&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='info'&gt;&#10;&#10;&lt;div class='box'&gt;&#10;📱&#10;&lt;h3&gt;Mobile Banking&lt;/h3&gt;&#10;&lt;p&gt;&#10;Transfer money instantly.&#10;Manage debit cards.&#10;Recharge &amp; bill payments.&#10;&lt;/p&gt;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='box'&gt;&#10;🌐&#10;&lt;h3&gt;Internet Banking&lt;/h3&gt;&#10;&lt;p&gt;&#10;View statements.&#10;Download reports.&#10;Manage beneficiaries.&#10;&lt;/p&gt;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='box'&gt;&#10;☎️&#10;&lt;h3&gt;24×7 Support&lt;/h3&gt;&#10;&lt;p&gt;&#10;Phone: +91 9494207062&#10;&lt;br&gt;&lt;br&gt;&#10;Email: narsingbeesetti22@gmail.com&#10;&lt;/p&gt;&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='footer'&gt;&#10;    &lt;b&gt;Real Bank&lt;/b&gt;&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    📞 Customer Care: +91 9494207062&#10;    &lt;br/&gt;&#10;    ✉ support.realbank@gmail.com&#10;    &lt;br/&gt;&#10;    🌐 www.realbank.com&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    © 2026 Real Bank. All Rights Reserved.&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    This is an automated notification. Please do not reply to this email.&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/body&gt;&#10;&#10;&lt;/html&gt;&quot;]" doc:name="emailBody" doc:id="3999856d-e699-44a7-9a26-5fcb84afb6ba" variableName="emailBody" />
+						<email:send doc:name="email send to the respective users with the respective bank data" doc:id="5d652429-0c3f-4f2b-805c-b8e4e826e1b5" config-ref="Email_SMTP" fromAddress="narsingbeesetti06@gmail.com" subject='#["Your Account detailes - " ++ vars.bankname as String]' >
+							<email:to-addresses >
+								<email:to-address value="#[vars.email]" />
+								<email:to-address value="support.realbank@gmail.com" />
+								<email:to-address value="narsingbeesetti06@gmail.com" />
+							</email:to-addresses>
+							<email:body contentType="text/html" encoding="UTF-8" >
+								<email:content ><![CDATA[#[vars.emailBody]]]></email:content>
+							</email:body>
+						</email:send>
+						<ee:transform doc:name="response" doc:id="d1935611-d8fe-4275-bad2-993a6f7ca705">
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  bankDetails: {
+    account_data: {
+       "status": "Success",
+       "statusCode": 200,
+       "message": "The account details email has been sent successfully to the user.",
+       "data": vars.inputpayload map (item) -> item - "TRANSACTIONS"  }
+  }
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</otherwise>
+				</choice>
+				<logger level="INFO" doc:name="End Flow" doc:id="362ff895-d1ad-48e9-a3c0-b64dd97d1389" message="----------------------------End Flow------------------------#[payload]" />
+			</when>
+		</choice>
+    </flow>
+    <flow name="get:\health:dream-bank-sapi-config">
+		<logger level="INFO" doc:name="API health check flow started" doc:id="da0f758a-9122-4ad8-a27b-e392a3e51448" message="=======Start API health check flow============"/>
+		<set-variable value="${api.name}" doc:name="Set Variable" doc:id="c17073c6-d43b-4431-999f-c1996e4e83f0" variableName="apiName"/>
+		<set-variable value="${api.version}" doc:name="Set Variable" doc:id="8fc4b385-de35-463e-909d-fb5da218a3b3" variableName="version"/>
+		<set-variable value='#[{ status: "UP" }]' doc:name="status" doc:id="08839e97-eb07-47d3-82c3-bbf0e191da0f" variableName="status"/>
+		<set-variable value="200" doc:name="statuscode" doc:id="3e558874-0af9-4804-8fad-3231e88a459d" variableName="statuscode"/>
+		<choice doc:name="Choice" doc:id="8fdad058-c4f4-43e3-b7c4-3429fc2679b4" >
+			<when expression="#[vars.status == vars.statuscode]">
+				<ee:transform doc:name="mapping" doc:id="c0be4190-92bb-4d42-926c-72b3fe2c0603" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    status: "DOWN",
+    message: vars.apiName ++ " is Not running.",
+    service: vars.apiName,
+    version: vars.version,
+    timestamp: now()
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="mapping">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    status: "UP",
+    message: vars.apiName ++ " is running successfully.",
+    service: vars.apiName,
+    version: vars.version,
+    timestamp: now()
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="End API health check flow" doc:id="33806d0d-7781-4306-ac29-057cdeb3fc43" message="==========End API health check flow ==========="/>
+    </flow>
+    <flow name="get:\accounts\(accountNumber)\transactions:dream-bank-sapi-config">
+		<logger level="INFO" doc:name="start Transcation cal" doc:id="3c8c4be9-4497-4d27-a861-a16eefe13bf9" message="------------start Transcation call----------" />
+		<set-variable value="#[attributes.uriParams.accountNumber as String]" doc:name="accountNumber" doc:id="435fd7c6-8e35-4130-a5d9-909514266452" variableName="accountNumber" />
+		<snowflake:select doc:name="verify account data" doc:id="9a493ef8-68df-416d-addb-fdca24908c6b" config-ref="Snowflake_Config" >
+			<snowflake:sql ><![CDATA[select * from bank_customer_data where accountnumber = :accountNumber]]></snowflake:sql>
+			<snowflake:input-parameters ><![CDATA[#[{
+	"accountNumber": attributes.uriParams.accountNumber
+}]]]></snowflake:input-parameters>
+		</snowflake:select>
+		<set-variable value="#[payload.EMAIL[0]]" doc:name="email" doc:id="01e42f78-e19c-4b72-93a0-1c804acc18a7" variableName="email" />
+		<set-variable value="#[payload.BANKNAME[0]]" doc:name="bankName" doc:id="ac93ca84-bd7b-4d9c-afde-053e0c0edda7" variableName="bankName" />
+		<logger level="INFO" doc:name="After verify database" doc:id="0bc96561-9b4a-4564-b8ba-add186dd2bcc" message="=========After verify database===" />
+		<choice doc:name="Choice" doc:id="cf09eabe-9c39-4008-8060-223e1bd0f8c1" >
+			<when expression="#[sizeOf(payload) == 0]" >
+				<ee:transform doc:name="account does not exist in database" doc:id="30598e60-8dff-48b9-987d-6b43b312e5cb" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"bank_account_detailes": {
+		"account_status": {
+			"status": "FAILED",
+			"statusCode": "404",
+			"accountNumber": vars.accountNumber default "Unknow",
+			"message": "An account does not exists with the provided customer details. Please try with new details. If you are a new customer, please validate your information."	
+		}
+	}
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="The customer account deatils does not  existed in DB" doc:id="85c55eab-bd42-4ddf-a830-837aacb0e4aa" message="----------------------------The customer account deatils does not  existed in DB--------------------------" />
+			</when>
+			<otherwise >
+				<snowflake:select doc:name="retrive transaction data" doc:id="2430d4f4-242f-45cb-bf12-57e945bbac3c" config-ref="Snowflake_Config" target="db">
+					<snowflake:sql><![CDATA[SELECT
+    c.ACCOUNTNUMBER AS ACCOUNTNUMBER,
+    t.value['transactionType']::STRING AS TRANSACTIONTYPE,
+    t.value['amount']::NUMBER AS AMOUNT,
+    t.value['balanceAfterTransaction']::NUMBER AS BALANCE,
+    t.value['timestamp']::STRING AS TIMESTAMP
+FROM MYDATABASE.PUBLIC.BANK_CUSTOMER_DATA c,
+LATERAL FLATTEN(INPUT => c.TRANSACTIONS) t
+WHERE c.ACCOUNTNUMBER = :accountNumber;]]></snowflake:sql>
+					<snowflake:input-parameters><![CDATA[#[{
+    accountNumber: vars.accountNumber
+}]]]></snowflake:input-parameters>
+				</snowflake:select>
+				<ee:transform doc:name="after database" doc:id="24c3c749-6eba-4613-921a-017e5f45e99a" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<ee:transform doc:name="payloadType" doc:id="c3efd182-b96e-42cb-9b4b-991535ee1b15" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    payloadType: typeOf(payload),
+    payload: payload
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<set-variable value='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;    status: "SUCCESS",&#10;    statusCode: 200,&#10;    transactions: vars.db map (row) -&gt; {&#10;        accountNumber: row.ACCOUNTNUMBER,&#10;        transactionType: row.TRANSACTIONTYPE,&#10;        amount: row.AMOUNT,&#10;        balance: row.BALANCE,&#10;        timestamp: row.TIMESTAMP&#10;    }&#10;}]' doc:name="output" doc:id="417bcd92-2a57-4e7f-83f4-4a0876244629" variableName="output" />
+				<set-variable value="#[%dw 2.0&#10;output application/java&#10;&#10;var customer = payload.payload[0]&#10;&#10;var transactionString =&#10;    (customer.TRANSACTIONS default &quot;[]&quot;) as String&#10;&#10;var transactions =&#10;    if (isEmpty(transactionString))&#10;        []&#10;    else&#10;        read(transactionString, &quot;application/json&quot;)&#10;&#10;var accountNumber =&#10;    (customer.ACCOUNTNUMBER default &quot;XXXXXXXXXX&quot;) as String&#10;&#10;var accountHolder =&#10;    (customer.FULLNAME default &quot;N/A&quot;) as String&#10;&#10;var balance =&#10;    (customer.BALANCE default 0) as Number&#10;&#10;var status =&#10;    (customer.STATUS default &quot;N/A&quot;) as String&#10;    &#10;var bankName =&#10;    (customer.BANKNAME default &quot;N/A&quot;) as String&#10;&#10;---&#10;&quot;&lt;!DOCTYPE html&gt;&#10;&lt;html&gt;&#10;&lt;head&gt;&#10;&lt;meta charset='UTF-8'&gt;&#10;&#10;&lt;style&gt;&#10;&#10;body{&#10;font-family:'Segoe UI',Arial,sans-serif;&#10;background:linear-gradient(135deg,#667eea,#764ba2);&#10;padding:40px 20px;&#10;}&#10;&#10;.container{&#10;max-width:1100px;&#10;margin:auto;&#10;background:white;&#10;border-radius:20px;&#10;overflow:hidden;&#10;box-shadow:0 25px 50px rgba(0,0,0,.2);&#10;}&#10;&#10;.header{&#10;background:linear-gradient(135deg,#1a237e,#283593);&#10;color:white;&#10;padding:40px;&#10;text-align:center;&#10;}&#10;&#10;.bank-logo{&#10;font-size:40px;&#10;}&#10;&#10;.header h1{&#10;font-size:32px;&#10;}&#10;&#10;.account-info{&#10;padding:30px;&#10;}&#10;&#10;.info-card{&#10;display:grid;&#10;grid-template-columns:repeat(4,1fr);&#10;gap:20px;&#10;background:#f8f9ff;&#10;padding:25px;&#10;border-radius:15px;&#10;}&#10;&#10;.label{&#10;font-size:12px;&#10;color:#666;&#10;}&#10;&#10;.value{&#10;font-size:16px;&#10;font-weight:bold;&#10;color:#1a237e;&#10;}&#10;&#10;&#10;.summary{&#10;padding:0 30px 30px;&#10;display:grid;&#10;grid-template-columns:repeat(3,1fr);&#10;gap:20px;&#10;}&#10;&#10;&#10;.card{&#10;padding:20px;&#10;border:2px solid #eee;&#10;border-radius:15px;&#10;}&#10;&#10;&#10;.card-icon{&#10;font-size:30px;&#10;}&#10;&#10;.card-label{&#10;color:#666;&#10;font-size:13px;&#10;}&#10;&#10;.card-value{&#10;font-size:22px;&#10;font-weight:bold;&#10;color:#1a237e;&#10;}&#10;&#10;.balance{&#10;color:#4caf50;&#10;}&#10;&#10;&#10;.table-section{&#10;padding:0 30px 40px;&#10;}&#10;&#10;&#10;table{&#10;width:100%;&#10;border-collapse:separate;&#10;border-spacing:0 8px;&#10;}&#10;&#10;&#10;th{&#10;background:#667eea;&#10;color:white;&#10;padding:15px;&#10;}&#10;&#10;&#10;td{&#10;padding:15px;&#10;text-align:center;&#10;background:#fff;&#10;border-bottom:1px solid #eee;&#10;}&#10;&#10;&#10;.badge{&#10;padding:5px 12px;&#10;border-radius:20px;&#10;font-size:12px;&#10;font-weight:bold;&#10;}&#10;&#10;&#10;.credit{&#10;background:#e8f5e9;&#10;color:#2e7d32;&#10;}&#10;&#10;&#10;.debit{&#10;background:#ffebee;&#10;color:#c62828;&#10;}&#10;&#10;&#10;.amount-credit{&#10;color:#2e7d32;&#10;font-weight:bold;&#10;}&#10;&#10;&#10;.amount-debit{&#10;color:#c62828;&#10;font-weight:bold;&#10;}&#10;&#10;&#10;.footer{&#10;background:#f8f9ff;&#10;padding:25px;&#10;text-align:center;&#10;}&#10;&#10;&#10;&lt;/style&gt;&#10;&#10;&lt;/head&gt;&#10;&#10;&#10;&lt;body&gt;&#10;&#10;&#10;&lt;div class='container'&gt;&#10;&#10;&#10;&lt;div class='header'&gt;&#10;&#10;&lt;div class='bank-logo'&gt;🏦 REAL BANK&lt;/div&gt;&#10;&#10;&lt;h1&gt;Transaction Statement&lt;/h1&gt;&#10;&#10;&lt;p&gt;Your financial overview at a glance&lt;/p&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&#10;&#10;&lt;div class='account-info'&gt;&#10;&#10;&lt;div class='info-card'&gt;&#10;&#10;&#10;&lt;div&gt;&#10;&lt;span class='label'&gt;Account Number&lt;/span&gt;&#10;&lt;br&gt;&#10;&lt;span class='value'&gt;&quot; ++ accountNumber ++ &quot;&lt;/span&gt;&#10;&lt;/div&gt;&#10;&#10;&#10;&#10;&lt;div&gt;&#10;&lt;span class='label'&gt;Account Holder&lt;/span&gt;&#10;&lt;br&gt;&#10;&lt;span class='value'&gt;&quot; ++ accountHolder ++ &quot;&lt;/span&gt;&#10;&lt;/div&gt;&#10;&#10;&#10;&#10;&lt;div&gt;&#10;&lt;span class='label'&gt;Generated On&lt;/span&gt;&#10;&lt;br&gt;&#10;&lt;span class='value'&gt;&quot; ++ (now() as String) ++ &quot;&lt;/span&gt;&#10;&lt;/div&gt;&#10;&#10;&lt;div&gt;&#10;    &lt;span class='label'&gt;Status&lt;/span&gt;&#10;    &lt;br/&gt;&#10;    &lt;span class='value' style='color:&quot; ++&#10;        (if (upper(status) == &quot;ACTIVE&quot;) &quot;green&quot; else &quot;red&quot;)&#10;        ++ &quot;;'&gt;&#10;        ● &quot; ++ status ++ &quot;&#10;    &lt;/span&gt;&#10;&lt;/div&gt;&#10;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&#10;&#10;&#10;&lt;div class='summary'&gt;&#10;&#10;&#10;&lt;div class='card'&gt;&#10;&#10;&lt;div class='card-icon'&gt;💰&lt;/div&gt;&#10;&#10;&lt;span class='card-label'&gt;&#10;Available Balance&#10;&lt;/span&gt;&#10;&#10;&lt;br&gt;&#10;&#10;&lt;span class='card-value balance'&gt;&#10;₹ &quot; ++ (balance as String) ++ &quot;&#10;&lt;/span&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&#10;&#10;&lt;div class='card'&gt;&#10;&#10;&lt;div class='card-icon'&gt;📊&lt;/div&gt;&#10;&#10;&lt;span class='card-label'&gt;&#10;Total Transactions&#10;&lt;/span&gt;&#10;&#10;&lt;br&gt;&#10;&#10;&lt;span class='card-value'&gt;&#10;&quot; ++ (sizeOf(transactions) as String) ++ &quot;&#10;&lt;/span&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&#10;&#10;&lt;div class='card'&gt;&#10;&#10;&lt;div class='card-icon'&gt;🏛️&lt;/div&gt;&#10;&#10;&lt;span class='card-label'&gt;&#10;Bank&#10;&lt;/span&gt;&#10;&#10;&lt;br&gt;&#10;&#10;&lt;span class='card-value'&gt;&#10;REAL BANK&#10;&lt;/span&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&#10;&lt;/div&gt;&#10;&#10;&#10;&#10;&#10;&lt;div class='table-section'&gt;&#10;&#10;&#10;&lt;table&gt;&#10;&#10;&#10;&lt;tr&gt;&#10;&#10;&lt;th&gt;S.No&lt;/th&gt;&#10;&#10;&lt;th&gt;Transaction Type&lt;/th&gt;&#10;&#10;&lt;th&gt;Amount&lt;/th&gt;&#10;&#10;&lt;th&gt;Balance&lt;/th&gt;&#10;&#10;&lt;th&gt;Date &amp; Time&lt;/th&gt;&#10;&#10;&lt;/tr&gt;&#10;&#10;&#10;&quot; ++&#10;&#10;(&#10;transactions map ((item,index)-&gt;&#10;&#10;&#10;&quot;&lt;tr&gt;&#10;&#10;&lt;td&gt;&quot; ++ ((index+1) as String) ++ &quot;&lt;/td&gt;&#10;&#10;&#10;&lt;td&gt;&#10;&#10;&lt;span class='badge &quot; ++&#10;&#10;(if ((item.transactionType default &quot;&quot;) as String == &quot;DEPOSIT&quot;)&#10;&quot;credit&quot;&#10;else&#10;&quot;debit&quot;)&#10;&#10;++ &quot;'&gt;&#10;&#10;&quot; ++&#10;&#10;((item.transactionType default &quot;UNKNOWN&quot;) as String)&#10;&#10;++&#10;&#10;&quot;&lt;/span&gt;&#10;&#10;&lt;/td&gt;&#10;&#10;&#10;&#10;&lt;td class='&quot; ++&#10;&#10;(if ((item.transactionType default &quot;&quot;) as String == &quot;DEPOSIT&quot;)&#10;&quot;amount-credit&quot;&#10;else&#10;&quot;amount-debit&quot;)&#10;&#10;++&#10;&#10;&quot;'&gt;&#10;&#10;&#10;&quot; ++&#10;&#10;(if ((item.transactionType default &quot;&quot;) as String == &quot;DEPOSIT&quot;)&#10;&quot;+&quot;&#10;else&#10;&quot;-&quot;)&#10;&#10;++&#10;&#10;&quot;₹ &quot;&#10;&#10;++&#10;&#10;((item.amount default 0) as String)&#10;&#10;++&#10;&#10;&quot;&lt;/td&gt;&#10;&#10;&#10;&#10;&#10;&lt;td&gt;&#10;&#10;₹ &quot;&#10;&#10;++&#10;&#10;((item.balanceAfterTransaction default 0) as String)&#10;&#10;++&#10;&#10;&quot;&lt;/td&gt;&#10;&#10;&#10;&#10;&lt;td&gt;&#10;&#10;&quot;&#10;&#10;++&#10;&#10;((item.timestamp default &quot;&quot;) as String)&#10;&#10;++&#10;&#10;&quot;&#10;&#10;&lt;/td&gt;&#10;&#10;&#10;&lt;/tr&gt;&quot;&#10;&#10;)&#10;&#10;joinBy &quot;&quot;&#10;&#10;)&#10;&#10;++&#10;&#10;&quot;&#10;&#10;&#10;&lt;/table&gt;&#10;&#10;&#10;&lt;/div&gt;&#10;&#10;&#10;&#10;&#10;&lt;div class='footer'&gt;&#10;&#10;&lt;b&gt;Real Bank&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;&#10;&#10;📞 Customer Care : +91 9494207062&lt;br/&gt;&#10;&#10;✉ support@realbank.com&lt;br/&gt;&#10;&#10;🌐 www.realbank.com&lt;br/&gt;&lt;br/&gt;&#10;&#10;© 2026 Real Bank. All Rights Reserved.&lt;br/&gt;&lt;br/&gt;&#10;&#10;This is an automated transaction alert. Please do not reply to this email.&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/body&gt;&#10;&lt;/html&gt;&quot;]" doc:name="emailbody" doc:id="17056222-9879-44fc-bdfa-c292219b1d08" variableName="emailbody" />
+				<email:send doc:name="email send to the respective users with the respective bank data" doc:id="c83254ec-eaef-450f-8c47-059ae10cf711" config-ref="Email_SMTP" fromAddress="narsingbeesetti06@gmail.com" subject='#["Please find your Transactions in this month -" ++ vars.bankName]' >
+					<email:to-addresses >
+						<email:to-address value="#[vars.email]" />
+						<email:to-address value="support.realbank@gmail.com" />
+					</email:to-addresses>
+					<email:body contentType="text/html" encoding="UTF-8" >
+						<email:content ><![CDATA[#[vars.emailbody]]]></email:content>
+					</email:body>
+				</email:send>
+				<ee:transform doc:name="final output" doc:id="7f523770-b1a1-4aa7-8afe-8124a664a630">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+vars."output"]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="End Transaction Flow" doc:id="d76dc19b-1eb1-4bd3-8cf5-f89dc59f2560" message="-----------------------End Transaction Flow-----------------------#[payload]" />
+    </flow>
+    <flow name="get:\accounts\(accountNumber):dream-bank-sapi-config">
+		<logger level="INFO" doc:name="Start Flow" doc:id="bc996cd7-6616-4ca4-8f14-ac062950a412" message="-------------------------------Start Flow----------------------------------" />
+		<set-variable value="#[attributes.uriParams.accountNumber]" doc:name="accountNumber" doc:id="90d92814-5cb5-4df2-b596-06ad7423b450" variableName="accountNumber" />
+		<logger level="INFO" doc:name="Before DB" doc:id="057ddb07-1888-4018-b342-31d2fdaf993d" message="-----------------Before DB--------------" />
+		<snowflake:select doc:name="verify account" doc:id="1f68195c-a2d4-4a9a-8c43-c8dfebc3f8d5" config-ref="Snowflake_Config" >
+			<snowflake:sql ><![CDATA[select * from BANK_CUSTOMER_DATA where accountNumber = :account]]></snowflake:sql>
+			<snowflake:input-parameters ><![CDATA[#[{
+	"account": vars.accountNumber
+}]]]></snowflake:input-parameters>
+		</snowflake:select>
+		<logger level="INFO" doc:name="After DB" doc:id="85fad5e8-2655-40f7-a459-85aa5e22f2f8" message="--------------After DB--------------" />
+		<set-variable value="#[payload.EMAIL[0]]" doc:name="email" doc:id="65b901fa-af3d-45d6-8257-f3d32e0efb8e" variableName="email" />
+		<choice doc:name="Choice" doc:id="e17b0153-26d8-4ee1-99dd-c09d3d6686e7" >
+			<when expression="#[sizeOf(payload) == 0]" >
+				<ee:transform doc:name="Account not found" doc:id="9f9cfc41-dac5-464a-bd7e-f690ccfe1f58" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  status: "Failed",
+  message: "We couldn’t find an account with the given account number. Please check and try again.",
+  accountNumber: vars.accountNumber
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="End Flow" doc:id="299267be-0c29-4b58-9551-e91e6b068b8f" message="-------------End Flow-------------#[payload]" />
+			</when>
+			<otherwise >
+				<set-variable value="#[payload.EMAIL[0]]" doc:name="email" doc:id="8ed69e45-4751-4088-9115-892c620edc1f" variableName="email" />
+				<set-variable value="#[payload.BANKNAME[0]]" doc:name="bankname" doc:id="d58c7b33-fe1e-40e7-8f81-a363e1592946" variableName="bankname" />
+				<set-variable value="#[payload.STATUS[0]]" doc:name="status" doc:id="3202f4e4-a533-40a6-9dbf-51d4eaacc20c" variableName="status" />
+				<set-variable value="#[%dw 2.0&#10;output application/java&#10;&#10;---&#10;&quot;&lt;!DOCTYPE html&gt;&#10;&lt;html&gt;&#10;&lt;head&gt;&#10;&lt;meta charset='UTF-8'&gt;&#10;&#10;&lt;style&gt;&#10;body {&#10;    margin: 0;&#10;    padding: 0;&#10;    background: #edf2f7;&#10;    font-family: 'Segoe UI', Arial, sans-serif;&#10;}&#10;&#10;.wrapper {&#10;    width: 100%;&#10;    padding: 30px 0;&#10;}&#10;&#10;.container {&#10;    max-width: 760px;&#10;    margin: auto;&#10;    background: white;&#10;    border-radius: 18px;&#10;    overflow: hidden;&#10;    box-shadow: 0 10px 40px rgba(0, 0, 0, .12);&#10;}&#10;&#10;.header {&#10;    background: linear-gradient(135deg, #003366, #0056b3, #007bff);&#10;    padding: 35px;&#10;    color: white;&#10;}&#10;&#10;.bank {&#10;    font-size: 34px;&#10;    font-weight: bold;&#10;}&#10;&#10;.tag {&#10;    margin-top: 5px;&#10;    font-size: 15px;&#10;    opacity: .9;&#10;}&#10;&#10;.hero {&#10;    padding: 35px;&#10;    background: #f8fbff;&#10;}&#10;&#10;.hero h2 {&#10;    margin: 0;&#10;    color: #003366;&#10;}&#10;&#10;.hero p {&#10;    line-height: 28px;&#10;    color: #666;&#10;}&#10;&#10;.card {&#10;    margin: 30px;&#10;    border-radius: 15px;&#10;    overflow: hidden;&#10;    border: 1px solid #dde5ee;&#10;}&#10;&#10;.card-title {&#10;    background: #003366;&#10;    padding: 18px;&#10;    color: white;&#10;    font-size: 18px;&#10;    font-weight: bold;&#10;}&#10;&#10;table {&#10;    width: 100%;&#10;    border-collapse: collapse;&#10;}&#10;&#10;td {&#10;    padding: 16px;&#10;    border-bottom: 1px solid #ececec;&#10;    font-size: 15px;&#10;}&#10;&#10;td:first-child {&#10;    font-weight: bold;&#10;    background: #fafafa;&#10;    width: 40%;&#10;}&#10;&#10;.balance {&#10;    font-size: 28px;&#10;    font-weight: bold;&#10;    color: #009933;&#10;}&#10;&#10;.status {&#10;    background: #d9f7e8;&#10;    color: #0b8a3b;&#10;    padding: 6px 14px;&#10;    border-radius: 30px;&#10;    display: inline-block;&#10;    font-weight: bold;&#10;}&#10;&#10;.info {&#10;    display: flex;&#10;    gap: 18px;&#10;    padding: 0 25px 25px;&#10;}&#10;&#10;.box {&#10;    flex: 1;&#10;    background: #f7fbff;&#10;    padding: 22px;&#10;    border-radius: 15px;&#10;    text-align: center;&#10;    border: 1px solid #d7e8ff;&#10;}&#10;&#10;.box h3 {&#10;    margin: 10px 0;&#10;    color: #003366;&#10;}&#10;&#10;.box p {&#10;    font-size: 13px;&#10;    color: #666;&#10;    line-height: 22px;&#10;}&#10;&#10;.security {&#10;    margin: 25px;&#10;    padding: 20px;&#10;    background: #fff8ea;&#10;    border-left: 5px solid orange;&#10;    border-radius: 10px;&#10;}&#10;&#10;.security h3 {&#10;    margin-top: 0;&#10;    color: #c67d00;&#10;}&#10;&#10;.footer {&#10;    background: #003366;&#10;    color: white;&#10;    text-align: center;&#10;    padding: 35px;&#10;    font-size: 13px;&#10;    line-height: 24px;&#10;}&#10;&#10;.footer a {&#10;    color: #fff;&#10;    text-decoration: none;&#10;}&#10;&lt;/style&gt;&#10;&#10;&lt;/head&gt;&#10;&#10;&lt;body&gt;&#10;&#10;&lt;div class='wrapper'&gt;&#10;&#10;&lt;div class='container'&gt;&#10;&#10;&lt;div class='header'&gt;&#10;&#10;&lt;div class='bank'&gt;&#10;🏦 &quot; ++ (vars.bankname default &quot;N/A&quot;) ++ &quot;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='tag'&gt;&#10;Secure • Trusted • Digital Banking&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='hero'&gt;&#10;&#10;&lt;h2&gt;&#10;Welcome,&#10;&lt;b&gt;&quot; ++ (upper(payload.FULLNAME[0] default &quot;N/A&quot;)) ++ &quot;&lt;/b&gt; 👋&#10;&lt;/h2&gt;&#10;&#10;&lt;p&gt;&#10;Congratulations! Please find your account details below. Thank you for choosing &lt;b&gt;Real Bank&lt;/b&gt; as your trusted financial partner.&#10;&lt;/p&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='card'&gt;&#10;&#10;&lt;div class='card-title'&gt;&#10;💳 Account Details&#10;&lt;/div&gt;&#10;&#10;&lt;table&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Account Holder&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (payload[0].FULLNAME default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Bank Name&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (vars.bankname default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Account Number&lt;/td&gt;&#10;&lt;td&gt;&lt;b&gt;&quot; ++ (vars.accountNumber default &quot;N/A&quot;) ++ &quot;&lt;/b&gt;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Date of Birth&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (payload[0].DATEOFBIRTH default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Mobile Number&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (payload[0].MOBILENUMBER default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Email Address&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (vars.email default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Aadhaar&lt;/td&gt;&#10;&lt;td&gt;XXXX XXXX &quot; ++ ((payload[0].ADHARNUMBER as String default &quot;N/A&quot;)[-4 to -1] default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Address&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (payload[0].ADDRESS default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Status&lt;/td&gt;&#10;&lt;td&gt;&lt;span class='status'&gt;&quot; ++ (payload[0].STATUS default &quot;N/A&quot;) ++ &quot;&lt;/span&gt;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;Available Balance&lt;/td&gt;&#10;&lt;td class='balance'&gt;₹ &quot; ++ (payload[0].BALANCE default &quot;0.00&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;/table&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='security'&gt;&#10;&#10;&lt;h3&gt;&#10;🔒 Banking Security&#10;&lt;/h3&gt;&#10;&#10;&lt;ul&gt;&#10;&lt;li&gt;Never share your ATM PIN.&lt;/li&gt;&#10;&lt;li&gt;Never share OTP with anyone.&lt;/li&gt;&#10;&lt;li&gt;Real Bank never asks for passwords.&lt;/li&gt;&#10;&lt;li&gt;Enable SMS &amp; Email transaction alerts.&lt;/li&gt;&#10;&lt;li&gt;Report fraudulent transactions immediately.&lt;/li&gt;&#10;&lt;/ul&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='info'&gt;&#10;&#10;&lt;div class='box'&gt;&#10;📱&#10;&lt;h3&gt;Mobile Banking&lt;/h3&gt;&#10;&lt;p&gt;&#10;Transfer money instantly. Manage debit cards. Recharge &amp; bill payments.&#10;&lt;/p&gt;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='box'&gt;&#10;🌐&#10;&lt;h3&gt;Internet Banking&lt;/h3&gt;&#10;&lt;p&gt;&#10;View statements. Download reports. Manage beneficiaries.&#10;&lt;/p&gt;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='box'&gt;&#10;☎️&#10;&lt;h3&gt;24×7 Support&lt;/h3&gt;&#10;&lt;p&gt;&#10;Phone: +91 9494207062&#10;&lt;br&gt;&lt;br&gt;&#10;Email: narsingbeesetti22@gmail.com&#10;&lt;/p&gt;&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='footer'&gt;&#10;    &lt;b&gt;Real Bank&lt;/b&gt;&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    📞 Customer Care: +91 9494207062&#10;    &lt;br/&gt;&#10;    ✉ support.realbank@gmail.com&#10;    &lt;br/&gt;&#10;    🌐 www.realbank.com&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    © 2026 Real Bank. All Rights Reserved.&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    This is an automated notification. Please do not reply to this email.&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/body&gt;&#10;&#10;&lt;/html&gt;&quot;]" doc:name="emailBody" doc:id="594c8f89-192d-4a02-8645-a68e9ff2567e" variableName="emailBody" />
+				<parse-template doc:name="creating html templete with user data for user email conformation " doc:id="abc720bf-a426-43de-8fcd-98c1f46ce767">
+					<content>&lt;html&gt;
+&lt;head&gt;
+    &lt;style&gt;
+        body {
+            text-align: center;
+        }
+
+        table {
+            margin: 0 auto;
+            height: 20vh;
+            width: 40vh;
+        }
+
+        h1 {
+            color: green;
+        }
+        h6 {
+            color: red;
+        }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h3&gt;#[vars.emailBody]&lt;/h3&gt;
+    
+&lt;/body&gt;
+&lt;/html&gt;</content>
+				</parse-template>
+				<email:send doc:name="email send to the respective users with the respective bank data" doc:id="1df48c85-b1bb-413a-a614-e5c7b947695f" config-ref="Email_SMTP" fromAddress="narsingbeesetti06@gmail.com" subject='#["Your Account detailes -" ++ vars.bankname as String]'>
+					<email:to-addresses>
+						<email:to-address value="#[vars.email]" />
+						<email:to-address value="support.realbank@gmail.com" />
+					</email:to-addresses>
+					<email:body contentType="text/html" encoding="UTF-8" />
+				</email:send>
+				<ee:transform doc:name="response" doc:id="d6749c92-1fe9-4725-a52a-a2f08199897c" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  bankDetails: {
+    account_data: {
+    	"status": "success",
+    	"statusCode": 200,
+    	"message": "The account details email has been sent successfully to the user.",
+    	"accountNumber": vars.accountNumber,
+    	"bankName": vars.bankname,
+    	"email": vars.email,
+    	"status": vars.status		
+    }
+  }
+}
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="End Flow" doc:id="c3c09341-91ac-4a27-9501-7cdc17a2a2dc" message="----------------------------End Flow------------------------#[payload]" />
+			</otherwise>
+		</choice>
+    </flow>
+    <flow name="post:\accounts:application\json:dream-bank-sapi-config">
+		<logger level="INFO" doc:name="Start Flow" doc:id="aab4ea0d-921b-4e13-ab33-cc33f551e4cc" message="----------------------------Start Flow--------------------" />
+		<set-variable value="#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	adharNumber: attributes.queryParams.adharNumber,&#10;	bankName: attributes.queryParams.bankName&#10;}]" doc:name="inputAttributes" doc:id="9031cf7b-b629-412a-83b4-11901bb03d9b" variableName="inputAttributes" />
+		<set-variable value="#[%dw 2.0&#10;output application/json&#10;var inp = []&#10;---&#10;inp&lt;&lt;payload reduce ((item, accumulator) -&gt; item)]" doc:name="inputPayload" doc:id="2ef03073-de98-48cf-8c3b-92047724a4a2" variableName="inputPayload" />
+		<logger level="INFO" doc:name="Before Choice" doc:id="19a18474-b806-44a8-bd35-180652422e1e" message="------------------Before Choice---------------" />
+		<choice doc:name="Choice" doc:id="74877e37-23a7-4047-aa2d-cb597e4fa5dc" >
+			<when expression="#[vars.inputPayload.address == null or vars.inputPayload.mobileNumber == null or vars.inputPayload.FullName == null or vars.inputPayload.dateOfBirth == null or vars.inputPayload.email == null]" >
+				<raise-error doc:name="Raise error" doc:id="19e4ac48-a756-4b2b-b3d6-13eca8fbdedc" type='"HTTP:INVALID_REQUEST" ' description='"REQUIRED_KEY_FIELDS_MISSING" ' />
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Valid Data" doc:id="e00b60c1-a7b4-4241-9e9c-368ab4835ae1" message="'Valid Data'" />
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Inputpayload Validation" doc:id="8187ba65-4b1f-48e3-a4d8-e9163e983235" message="============Inputpayload Validation============" />
+		<logger level="INFO" doc:name="Before Db" doc:id="a98aa0ec-351c-4cf9-bf86-b0a21d540594" message="-------------------before DB--------------------------" />
+		<snowflake:select doc:name="verify account" doc:id="32a4a648-ed4e-4977-af27-8415f7510fc3" config-ref="Snowflake_Config" >
+			<snowflake:sql ><![CDATA[SELECT
+    c.ACCOUNTNUMBER,
+    i.IFSC_CODE,
+    i.BRANCH_NAME
+FROM BANK_IFSC_MASTER i
+LEFT JOIN BANK_CUSTOMER_DATA c
+ON (
+       c.EMAIL = :email
+    OR c.DATEOFBIRTH = :dateOfBirth
+    OR c.ADHARNUMBER = :adharNumber
+)
+WHERE UPPER(i.BANK_NAME) = UPPER(:bankName);]]></snowflake:sql>
+			<snowflake:input-parameters ><![CDATA[#[%dw 2.0
+output application/json
+---
+{
+	"email": vars.inputPayload.email,
+	"dateOfBirth": vars.inputPayload.dateOfBirth,
+	"adharNumber": vars.inputAttributes.adharNumber,
+	"bankName": vars.inputAttributes.bankName
+}]]]></snowflake:input-parameters>
+		</snowflake:select>
+		<logger level="INFO" doc:name="After Database" doc:id="5708cd98-5718-424b-8570-50fc1e352ae3" message="==========After Database===========" />
+		<set-variable value="#[%dw 2.0&#10;output application/java&#10;---&#10;payload[0].ACCOUNTNUMBER default null]" doc:name="accountNumber" doc:id="f04e7933-634b-414d-b080-364c33c98cd9" variableName="accountNumber" />
+		<set-variable value="#[%dw 2.0&#10;output application/java&#10;---&#10;payload[0].IFSC_CODE]" doc:name="ifsc" doc:id="d6588f87-3edf-40c8-bd29-83bc70b2d36d" variableName="ifsc" />
+		<set-variable value="#[%dw 2.0&#10;output application/java&#10;---&#10;payload[0].BRANCH_NAME]" doc:name="branchName" doc:id="90dd9f2d-f64c-4681-b096-4a02a4ae8b9d" variableName="branchName" />
+		<set-variable value="#[vars.inputPayload.email as String]" doc:name="email" doc:id="c5b3fb18-7643-48fc-a60b-04fe4b5304bf" variableName="email" />
+		<ee:transform doc:name="transform array to object" doc:id="4553b409-d4ee-40e8-a934-b6e79a31fb27" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload[0]]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<choice doc:name="verify the customer detalies sent by user if the customer is new then route the request to the insert flow" doc:id="a9ab05af-9530-4170-9ab0-d0108a669502" >
+			<when expression="#[vars.accountNumber != null]" >
+				<ee:transform doc:name="Account deatiles aready existed with requested input data" doc:id="76bd71f8-302c-445a-992d-6dcdc526c4e0" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  bank_account_detailes: {
+    account_status: {
+      status: "FAILED",
+      statusCode: "409",
+      message: "An account already exists with the provided customer details. Please try with new details. If you are a new customer, please validate your information."
+    },
+    account_data: {
+      accountNumber: vars.accountNumber,
+      adharNumber: vars.inputAttributes.adharNumber,
+      bankName: vars.inputAttributes.bankName,
+      ifscCode: vars.ifsc,
+      branchName: vars.branchName
+    },
+    input_data: vars.inputPayload
+  }
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="The customer account is already existed in DB" doc:id="12b0f1b8-fa70-4942-81e3-386acd6b02f3" message="----------------------------The customer account is already existed in DB--------------------------#[payload]" />
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Before account creation flow" doc:id="c08454f0-77da-447f-a623-46f726fd8c7e" message="============Before account creation flow=========" />
+				<ee:transform doc:name="auto Account Number creation after user send thier basic data" doc:id="b39fb4ed-37b6-4209-92e9-b353f71f6286">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    accountNumber: (floor(random() * 10000) + 856974568600) as String
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<set-variable value="#[payload.accountNumber]" doc:name="accountNumber " doc:id="8bc9b420-c49c-47d1-abc7-dae411c578cd" variableName="accountNumber" />
+				<snowflake:insert doc:name="Insert new customer data into real bank database" doc:id="c22d57fe-17c0-40bd-95c3-652072908d20" config-ref="Snowflake_Config">
+					<snowflake:sql><![CDATA[insert into bank_customer_data(FullName,dateOfBirth,mobileNumber,bankName,email,address,adharNumber,accountNumber,ifsc_code,branch_name)
+values (:FullName, :dateOfBirth, :mobileNumber, :bankName, :email, :address, :adharNumber, :accountNumber, :ifsc_code, :branch_name);]]></snowflake:sql>
+					<snowflake:input-parameters><![CDATA[#[{
+	"FullName": vars.inputPayload.FullName,
+	"dateOfBirth": vars.inputPayload.dateOfBirth,
+	"mobileNumber": vars.inputPayload.mobileNumber,
+	"email": vars.inputPayload.email,
+	"address": vars.inputPayload.address,
+	"adharNumber": vars.inputAttributes.adharNumber,
+	"accountNumber": vars.accountNumber,
+	"bankName": vars.inputAttributes.bankName,
+	"ifsc_code": vars.ifsc,
+	"branch_name": vars.branchName
+}]]]></snowflake:input-parameters>
+				</snowflake:insert>
+				<set-variable value="#[%dw 2.0&#10;output application/java&#10;&#10;---&#10;&quot;&lt;!DOCTYPE html&gt;&#10;&lt;html&gt;&#10;&lt;head&gt;&#10;&lt;meta charset='UTF-8'&gt;&#10;&lt;title&gt;Welcome to Real Bank&lt;/title&gt;&#10;&#10;&lt;style&gt;&#10;* {&#10;    margin: 0;&#10;    padding: 0;&#10;    box-sizing: border-box;&#10;}&#10;&#10;body {&#10;    background: #eef3f8;&#10;    font-family: 'Segoe UI', Arial, sans-serif;&#10;    padding: 30px 0;&#10;    color: #333;&#10;}&#10;&#10;.wrapper {&#10;    max-width: 760px;&#10;    margin: auto;&#10;    background: #ffffff;&#10;    border-radius: 20px;&#10;    overflow: hidden;&#10;    box-shadow: 0 15px 40px rgba(0, 0, 0, .15);&#10;}&#10;&#10;/* Header */&#10;.header {&#10;    background: linear-gradient(135deg, #002B5B, #0056B3, #0D6EFD);&#10;    padding: 45px;&#10;    color: #fff;&#10;    text-align: center;&#10;}&#10;&#10;.logo {&#10;    font-size: 38px;&#10;    font-weight: bold;&#10;    letter-spacing: 1px;&#10;}&#10;&#10;.tagline {&#10;    margin-top: 8px;&#10;    font-size: 15px;&#10;    opacity: .9;&#10;}&#10;&#10;/* Hero */&#10;.hero {&#10;    padding: 35px;&#10;    background: #f8fbff;&#10;    text-align: center;&#10;}&#10;&#10;.hero h2 {&#10;    color: #003366;&#10;    margin-bottom: 12px;&#10;    font-size: 30px;&#10;}&#10;&#10;.hero p {&#10;    color: #666;&#10;    line-height: 28px;&#10;    font-size: 15px;&#10;}&#10;&#10;.success {&#10;    margin: 25px auto;&#10;    width: 90%;&#10;    background: #E9F8EE;&#10;    border-left: 6px solid #16A34A;&#10;    padding: 18px;&#10;    border-radius: 10px;&#10;    font-size: 16px;&#10;    color: #0E7C3A;&#10;    font-weight: bold;&#10;}&#10;&#10;/* Account Card */&#10;.card {&#10;    margin: 30px;&#10;    border-radius: 16px;&#10;    overflow: hidden;&#10;    border: 1px solid #dfe6ee;&#10;}&#10;&#10;.card-title {&#10;    background: #003366;&#10;    color: white;&#10;    padding: 18px;&#10;    font-size: 20px;&#10;    font-weight: bold;&#10;}&#10;&#10;table {&#10;    width: 100%;&#10;    border-collapse: collapse;&#10;}&#10;&#10;td {&#10;    padding: 18px;&#10;    border-bottom: 1px solid #ececec;&#10;}&#10;&#10;td:first-child {&#10;    background: #fafafa;&#10;    font-weight: bold;&#10;    width: 38%;&#10;    color: #555;&#10;}&#10;&#10;.accno {&#10;    font-size: 24px;&#10;    font-weight: bold;&#10;    color: #0056B3;&#10;}&#10;&#10;.balance {&#10;    font-size: 26px;&#10;    font-weight: bold;&#10;    color: #16A34A;&#10;}&#10;&#10;.active {&#10;    background: #DDF8E7;&#10;    color: #118A43;&#10;    padding: 6px 18px;&#10;    border-radius: 25px;&#10;    font-weight: bold;&#10;}&#10;&#10;/* Feature Cards */&#10;.features {&#10;    display: flex;&#10;    gap: 18px;&#10;    padding: 0 30px 30px;&#10;}&#10;&#10;.feature {&#10;    flex: 1;&#10;    background: #f7fbff;&#10;    border: 1px solid #dbeafe;&#10;    padding: 22px;&#10;    border-radius: 15px;&#10;    text-align: center;&#10;}&#10;&#10;.feature .icon {&#10;    font-size: 40px;&#10;}&#10;&#10;.feature h3 {&#10;    margin: 15px 0;&#10;    color: #003366;&#10;}&#10;&#10;.feature p {&#10;    font-size: 13px;&#10;    line-height: 22px;&#10;    color: #666;&#10;}&#10;&#10;/* Security */&#10;.security {&#10;    margin: 0 30px 30px;&#10;    background: #FFF8EA;&#10;    padding: 22px;&#10;    border-left: 6px solid orange;&#10;    border-radius: 10px;&#10;}&#10;&#10;.security h3 {&#10;    margin-bottom: 12px;&#10;    color: #C97B00;&#10;}&#10;&#10;.security li {&#10;    margin: 10px 0;&#10;}&#10;&#10;/* Footer */&#10;.footer {&#10;    background: #002B5B;&#10;    padding: 35px;&#10;    text-align: center;&#10;    color: white;&#10;}&#10;&#10;.footer h3 {&#10;    margin-bottom: 10px;&#10;}&#10;&#10;.footer p {&#10;    line-height: 24px;&#10;    font-size: 13px;&#10;    opacity: .95;&#10;}&#10;&#10;.support {&#10;    margin-top: 20px;&#10;    padding-top: 20px;&#10;    border-top: 1px solid rgba(255, 255, 255, .2);&#10;}&#10;&lt;/style&gt;&#10;&#10;&lt;/head&gt;&#10;&#10;&lt;body&gt;&#10;&#10;&lt;div class='wrapper'&gt;&#10;&#10;&lt;div class='header'&gt;&#10;&#10;&lt;div class='logo'&gt;&#10;&#10;🏦 &quot; ++ (vars.inputAttributes.bankName default &quot;REAL BANK&quot;) ++ &quot;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='tagline'&gt;&#10;&#10;Safe • Secure • Trusted Banking&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='hero'&gt;&#10;&#10;&lt;h2&gt;&#10;&#10;Welcome,&#10;&quot; ++ upper(vars.inputPayload.FullName default &quot;CUSTOMER&quot;) ++ &quot; 👋&#10;&#10;&lt;/h2&gt;&#10;&#10;&lt;p&gt;&#10;&#10;Thank you for choosing&#10;&lt;b&gt;&quot; ++ (vars.inputAttributes.bankName default &quot;Real Bank&quot;) ++ &quot;&lt;/b&gt;.&#10;&#10;Your account has been successfully created and is now ready for banking.&#10;&#10;&lt;/p&gt;&#10;&#10;&lt;div class='success'&gt;&#10;&#10;✅ Account Created Successfully&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='card'&gt;&#10;&#10;&lt;div class='card-title'&gt;&#10;&#10;💳 Account Summary&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;table&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;👤 Customer Name&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (vars.inputPayload.FullName default &quot;&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;🏦 Bank Name&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (vars.inputAttributes.bankName default &quot;&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;🔖 IFSC Code&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (vars.ifsc default &quot;&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;🏢 Branch Name&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (vars.branchName default &quot;&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;💳 Account Number&lt;/td&gt;&#10;&lt;td class='accno'&gt;&quot; ++ (vars.accountNumber default &quot;&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;📱 Mobile Number&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (vars.inputPayload.mobileNumber default &quot;&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;📧 Email Address&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (vars.inputPayload.email default &quot;&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;🪪 Aadhaar Number&lt;/td&gt;&#10;&lt;td&gt;XXXX XXXX &quot; ++ (((vars.inputAttributes.adharNumber default &quot;&quot;) as String)[-4 to -1]) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;📍 Address&lt;/td&gt;&#10;&lt;td&gt;&quot; ++ (vars.inputPayload.address default &quot;&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;💰 Opening Balance&lt;/td&gt;&#10;&lt;td class='balance'&gt;₹0.00&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td&gt;✅ Account Status&lt;/td&gt;&#10;&lt;td&gt;&lt;span class='active'&gt;ACTIVE&lt;/span&gt;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;/table&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='features'&gt;&#10;&#10;&lt;div class='feature'&gt;&#10;&#10;&lt;div class='icon'&gt;📱&lt;/div&gt;&#10;&#10;&lt;h3&gt;Mobile Banking&lt;/h3&gt;&#10;&#10;&lt;p&gt;&#10;&#10;Transfer funds instantly.&#10;&#10;UPI Payments.&#10;&#10;Bill Payments.&#10;&#10;Recharge Services.&#10;&#10;&lt;/p&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='feature'&gt;&#10;&#10;&lt;div class='icon'&gt;🌐&lt;/div&gt;&#10;&#10;&lt;h3&gt;Internet Banking&lt;/h3&gt;&#10;&#10;&lt;p&gt;&#10;&#10;Mini Statement.&#10;&#10;Download Statements.&#10;&#10;Manage Beneficiaries.&#10;&#10;Profile Updates.&#10;&#10;&lt;/p&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='feature'&gt;&#10;&#10;&lt;div class='icon'&gt;💳&lt;/div&gt;&#10;&#10;&lt;h3&gt;Debit Card&lt;/h3&gt;&#10;&#10;&lt;p&gt;&#10;&#10;Card Controls.&#10;&#10;ATM Withdrawals.&#10;&#10;Contactless Payments.&#10;&#10;Transaction Limits.&#10;&#10;&lt;/p&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='security'&gt;&#10;&#10;&lt;h3&gt;&#10;&#10;🔐 Important Security Guidelines&#10;&#10;&lt;/h3&gt;&#10;&#10;&lt;ul&gt;&#10;&#10;&lt;li&gt;Never share your OTP, ATM PIN or CVV.&lt;/li&gt;&#10;&#10;&lt;li&gt;Real Bank never asks for passwords or OTP over phone.&lt;/li&gt;&#10;&#10;&lt;li&gt;Always verify beneficiaries before fund transfer.&lt;/li&gt;&#10;&#10;&lt;li&gt;Enable SMS &amp; Email transaction alerts.&lt;/li&gt;&#10;&#10;&lt;li&gt;Report unauthorized activity immediately.&lt;/li&gt;&#10;&#10;&lt;/ul&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='footer'&gt;&#10;    &lt;b&gt;Real Bank&lt;/b&gt;&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    📞 Customer Care: +91 9494207062&#10;    &lt;br/&gt;&#10;    ✉ support.realbank@gmail.com&#10;    &lt;br/&gt;&#10;    🌐 www.realbank.com&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    © 2026 Real Bank. All Rights Reserved.&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    This is an automated notification. Please do not reply to this email.&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/body&gt;&#10;&#10;&lt;/html&gt;&quot;]" doc:name="emailBody" doc:id="2577591f-6f34-485a-a760-7be9deef248d" variableName="emailBody" />
+				<parse-template doc:name="creating html templete with user data for user email conformation " doc:id="c66e0227-5d81-4351-96e7-d4e982ba1b5f">
+					<content>&lt;html&gt;
+&lt;head&gt;
+    &lt;style&gt;
+        body {
+            text-align: center;
+        }
+
+        table {
+            margin: 0 auto;
+            height: 20vh;
+            width: 40vh;
+        }
+
+        h1 {
+            color: green;
+        }
+        h6 {
+            color: red;
+        }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h3&gt;#[vars.emailBody]&lt;/h3&gt;
+    
+&lt;/body&gt;
+&lt;/html&gt;</content>
+				</parse-template>
+				<email:send doc:name="email send to the respective users with the respective bank data" doc:id="2855d584-c6ea-4e41-86c5-5226d5e7b002" config-ref="Email_SMTP" fromAddress="narsingbeesetti06@gmail.com" subject='#["Account created successfully in -" ++ vars.inputAttributes.bankName]'>
+					<email:to-addresses>
+						<email:to-address value="#[vars.inputPayload.email]" />
+						<email:to-address value="support.realbank@gmail.com" />
+					</email:to-addresses>
+					<email:body contentType="text/html" encoding="UTF-8" />
+				</email:send>
+				<ee:transform doc:name="response" doc:id="62460cd3-4539-4a39-8aad-c68fd69de66e" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	bank_account_detailes: {
+		"account_data": {
+			"status": "Success",
+			"statusCode": 201,
+			"message": "Congratulations!, Your account has been created successfully, and an email has been sent to the user.",
+			"accountCreatedTimestamp": now(),
+			"accountNumber": vars.accountNumber,
+			"bankName": vars.inputAttributes.bankName,
+			"ifsc_code": vars.ifsc,
+			"user_input_data": {
+				"data": vars.inputPayload
+			}
+		}
+	}
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="End Flow" doc:id="2aca75c8-cb89-4133-9f28-895d729d068b" message="-------------------End flow--------------#[payload]" />
+			</otherwise>
+		</choice>
+    </flow>
+    <flow name="post:\assistance\whatsapp:application\json:dream-bank-sapi-config">
+		<logger level="INFO" doc:name="Start Whatsapp Assistant Flow" doc:id="4e7e48b0-58db-47ab-ba71-b02184419ce0" message="===============Start Whatsapp Assistant Flow=============" />
+		<set-variable value="#[(payload.mobileNumber default payload.data.from default '') as String]" doc:name="mobileNumber" doc:id="cb5dee04-c974-44d6-98a7-11a40beddb82" variableName="mobileNumber" />
+		<set-variable value="#[lower(trim(payload.message default payload.data.body default ''))]" doc:name="message" doc:id="18be08da-a2e5-4f4e-b4f6-a7882365b4e5" variableName="message" />
+		<logger level="INFO" doc:name="Incoming Payload" doc:id="396d962b-905f-415f-9655-298b7f0360d2" message="#[write(payload,'application/json')]" />
+		<snowflake:select doc:name="verify customer detsiles exist or not " doc:id="d183f82d-c177-4d6b-9b3f-28c9fe1421a5" config-ref="Snowflake_Config" >
+			<snowflake:sql ><![CDATA[select * from bank_customer_data where mobileNumber = :mobileNumber]]></snowflake:sql>
+			<snowflake:input-parameters ><![CDATA[#[{
+	"mobileNumber": vars.mobileNumber
+}]]]></snowflake:input-parameters>
+		</snowflake:select>
+		<ee:transform doc:name="transform db array payload into json" doc:id="0e7c43d4-527a-4138-803b-3eb9d4ee9afd" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="After verify database" doc:id="9bf82a8a-3b7c-4604-8c5c-8a974819936d" message="#[payload]" />
+		<choice doc:name="Choice" doc:id="912bdcc7-958a-44cd-842d-5b9f040bf69e" >
+			<when expression='#[vars.message == "accountdetails"]' >
+				<logger level="INFO" doc:name="Inside choice route" doc:id="1c635800-2e2b-49e3-a50c-0833b13959a0" message="=============Inside choice router============" />
+				<choice doc:name="accountdetails" doc:id="79999491-67ed-49df-ab22-9ba04cbd297f" >
+					<when expression="#[sizeOf(payload) == 0]" >
+						<ee:transform doc:name="account does not exist" doc:id="046dcdc2-2145-4b11-b8c2-93f56d60d22e" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"bank_account_detailes": {
+		"account_status": {
+			"status": "FAILED",
+			"statusCode": "404",
+			"message": "An account does not exists with the provided customer details. Please try with new details. If you are a new customer, please validate your information."	
+		}
+	}
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<logger level="INFO" doc:name="he customer account deatils does not  existed in Database" doc:id="3fea8917-425d-4974-8304-9af0069bb386" message="----------------------------The customer account deatils does not  existed in Database--------------------------" />
+					</when>
+					<otherwise >
+						<snowflake:select doc:name="retrive account deatiles by mobilenumber" doc:id="3166f2cc-55a5-4a4a-8a20-0c729242100a" config-ref="Snowflake_Config" >
+							<snowflake:sql ><![CDATA[SELECT
+    FULLNAME,
+    ACCOUNTNUMBER,
+    STATUS,
+    BALANCE,
+    EMAIL,
+    BANKNAME,
+    ADDRESS,
+    ADHARNUMBER,
+    CREATED_AT,
+    MOBILENUMBER
+FROM BANK_CUSTOMER_DATA
+WHERE MOBILENUMBER = :mobileNumber;]]></snowflake:sql>
+							<snowflake:input-parameters ><![CDATA[#[{
+	"mobileNumber": vars.mobileNumber
+}]]]></snowflake:input-parameters>
+						</snowflake:select>
+						<ee:transform doc:name="mask fields" doc:id="5efa15b6-8235-4417-91f0-fad0944195f5" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+
+var customer = payload[0] default {}
+var acc = (customer.ACCOUNTNUMBER default "") as String
+var adhar = (customer.ADHARNUMBER default "") as String
+
+---
+{
+    mobileNumber: customer.MOBILENUMBER default "",
+    customerName: customer.FULLNAME default "Customer",
+
+    accountNumber:
+        if(sizeOf(acc) >= 4)
+            "XXXXXX" ++ acc[-4 to -1]
+        else
+            "Not Available",
+
+    accountType: customer.STATUS default "N/A",
+
+    balance: customer.BALANCE default 0,
+
+    email: customer.EMAIL default "N/A",
+
+    bankName: customer.BANKNAME default "Real Bank",
+
+    address: customer.ADDRESS default "N/A",
+
+    adharNumber:
+        if(sizeOf(adhar) >= 4)
+            "XXXXXXXX" ++ adhar[-4 to -1]
+        else
+            "Not Available",
+
+    createdAt: customer.CREATED_AT default ""
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<logger level="INFO" doc:name="payload" doc:id="c97bfd06-1453-4f41-b540-3a93fbcef56f" message="#[write(payload,'application/json')]" />
+						<http:request method="${http.requester.method}" doc:name="Request send to whatsapp assistant" doc:id="137d6ec1-6554-42fa-9cf3-73369b420022" config-ref="HTTP_Request_configuration" path="${http.requester.path}" >
+							<http:body ><![CDATA[#[%dw 2.0
+output application/x-www-form-urlencoded
+---
+{
+    token: p("ultramsg.token"),
+    to: "91" ++ vars.mobileNumber,
+    body:
+"🏦 Real Bank\n\n" ++
+"Dear " ++ payload.customerName ++ "\n\n" ++
+"🏦 Bank : " ++ payload.bankName ++ "\n" ++
+"👤 Customer : " ++ payload.customerName ++ "\n" ++
+"📱 Mobile : " ++ payload.mobileNumber ++ "\n" ++
+"💳 Account : " ++ payload.accountNumber ++ "\n" ++
+"📊 Status : " ++ payload.accountType ++ "\n" ++
+"💰 Balance : ₹" ++ (payload.balance as String) ++ "\n" ++
+"📧 Email : " ++ payload.email ++ "\n" ++
+"🏠 Address : " ++ payload.address ++ "\n" ++
+"🆔 Aadhaar : " ++ payload.adharNumber ++ "\n" ++
+"📅 Created : " ++ (payload.createdAt as String) ++ "\n\n" ++
+"Thank you for banking with Real Bank."
+}]]]></http:body>
+							<http:query-params ><![CDATA[#[output application/json
+---
+{
+	token : "s4gyjlv0audzesjd"
+}]]]></http:query-params>
+						</http:request>
+						<logger level="INFO" doc:name="UltraMsg Response" doc:id="0d1969a7-5ac2-4f48-9ede-cb933be8292b" message="#[write(payload,'application/json')]" />
+					</otherwise>
+				</choice>
+			</when>
+			<when expression='#[vars.message == "ministatement"]' >
+				<logger level="INFO" doc:name="Inside choice route" doc:id="5fa5c310-7563-49b8-bab6-e3b92e7893ec" message="====================Inside choice route============" />
+				<choice doc:name="ministatement" doc:id="b048fa8b-dcd8-4e0f-898c-40492a3df58a" >
+					<when expression="#[sizeOf(payload) == 0]" >
+						<ee:transform doc:name="account does not exist" doc:id="51e0a652-9021-4d63-a7d6-198fe36edbbb" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"bank_account_detailes": {
+		"account_status": {
+			"status": "FAILED",
+			"statusCode": "404",
+			"message": "An account does not exists with the provided customer details. Please try with new details. If you are a new customer, please validate your information."	
+		}
+	}
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<logger level="INFO" doc:name="he customer account deatils does not  existed in Database" doc:id="c4957c59-5544-4a78-95bd-fd3724c90b4d" message="----------------------------The customer account deatils does not  existed in Database--------------------------" />
+					</when>
+					<otherwise >
+						<snowflake:select doc:name="retrive transacctions data by mobilenumber" doc:id="30e2c831-55cc-4f17-b112-9c2f85a9a8fb" config-ref="Snowflake_Config" >
+							<snowflake:sql ><![CDATA[SELECT
+    c.FULLNAME,
+    c.MOBILENUMBER,
+    c.ACCOUNTNUMBER,
+    c.EMAIL,
+    c.STATUS,
+    c.BALANCE,
+    c.ADDRESS,
+    c.ADHARNUMBER,
+    c.BANKNAME,
+    c.CREATED_AT,
+
+    t.value['transactionType']::STRING AS TRANSACTIONTYPE,
+    t.value['amount']::NUMBER AS AMOUNT,
+    t.value['balanceAfterTransaction']::NUMBER AS BALANCEAFTERTRANSACTION,
+    t.value['timestamp']::STRING AS TIMESTAMP
+
+FROM BANK_CUSTOMER_DATA c,
+LATERAL FLATTEN(input => c.TRANSACTIONS) t
+WHERE c.MOBILENUMBER = :MOBILENUMBER;]]></snowflake:sql>
+							<snowflake:input-parameters ><![CDATA[#[{
+	"MOBILENUMBER": vars.mobileNumber
+}]]]></snowflake:input-parameters>
+						</snowflake:select>
+						<logger level="INFO" doc:name="payload" doc:id="23037ec0-f098-490e-ab3d-c34591e07aba" message="#[write(payload,'application/json')]" />
+						<ee:transform doc:name="mask fields" doc:id="422b3e7f-fad3-40ea-8f0c-70b0e898ceee" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+
+var rows = payload default []
+var customer = rows[0] default {}
+
+var account = (customer.ACCOUNTNUMBER default "") as String
+var adhar = (customer.ADHARNUMBER default "") as String
+var mobile = (customer.MOBILENUMBER default "") as String
+var email = (customer.EMAIL default "") as String
+
+---
+{
+    mobileNumber: mobile,
+    customerName: customer.FULLNAME default "Customer",
+
+    accountNumber:
+        if (sizeOf(account) >= 4)
+            "XXXXXX" ++ account[-4 to -1]
+        else
+            "Not Available",
+
+    accountStatus: customer.STATUS default "N/A",
+    currentBalance: customer.BALANCE default 0,
+
+    email:
+        if (email contains "@")
+            email[0 to 1] ++ "******@" ++ ((email splitBy "@")[1])
+        else
+            "Not Available",
+
+    bankName: customer.BANKNAME default "Real Bank",
+
+    address:
+        if ((customer.ADDRESS default "") != "")
+            "************"
+        else
+            "Not Available",
+
+    adharNumber:
+        if (sizeOf(adhar) >= 4)
+            "XXXXXXXX" ++ adhar[-4 to -1]
+        else
+            "Not Available",
+
+    createdAt: customer.CREATED_AT default "",
+
+    transactions:
+        rows map (item) -> {
+            transactionType: item.TRANSACTIONTYPE,
+            amount: item.AMOUNT,
+            balanceAfterTransaction: item.BALANCEAFTERTRANSACTION,
+            timestamp: item.TIMESTAMP
+        }
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<http:request method="${http.requester.method}" doc:name="Request send to whatsapp assistant" doc:id="5d671388-e89a-4118-951c-cc3506d8bb2a" config-ref="HTTP_Request_configuration" path="${http.requester.path}" >
+							<http:body ><![CDATA[#[%dw 2.0
+output application/x-www-form-urlencoded
+
+var txns =
+    if (isEmpty(payload.transactions default []))
+        "No recent transactions."
+    else
+        (payload.transactions map (t,index) ->
+            (index + 1) as String ++ ". " ++
+            (t.transactionType default "") ++
+            " | ₹" ++ (t.amount as String) ++
+            " | Balance: ₹" ++ (t.balanceAfterTransaction as String) ++
+            " | " ++ (t.timestamp as String)
+        ) joinBy "\n"
+
+---
+{
+    token: p("ultramsg.token"),
+
+    to: "91" ++ (payload.mobileNumber as String),
+
+    body:
+        "🏦 *REAL BANK*\n\n" ++
+        "👤 Customer: " ++ payload.customerName ++ "\n" ++
+        "💳 Account: " ++ payload.accountNumber ++ "\n" ++
+        "📱 *Mobile:* " ++ (payload.mobileNumber default "N/A") ++ "\n" ++
+        "📌 *Status:* " ++ (payload.accountStatus default "N/A") ++ "\n" ++
+        "📧 *Email:* " ++ (payload.email default "N/A") ++ "\n" ++
+        "🏠 *Address:* " ++ (payload.address default "N/A") ++ "\n" ++
+        "📅 *Account Created:* " ++ ((payload.createdAt default "") as String) ++ "\n\n" ++
+        "🏦 *Bank:* " ++ (payload.bankName default "Real Bank") ++ "\n" ++
+        
+        "💰 Balance: ₹" ++ (payload.currentBalance as String) ++ "\n\n" ++
+        "📜 Last Transactions\n" ++
+        txns
+}]]]></http:body>
+							<http:query-params ><![CDATA[#[output application/json
+---
+{
+	token : "s4gyjlv0audzesjd"
+}]]]></http:query-params>
+						</http:request>
+						<logger level="INFO" doc:name="UltraMsg Response" doc:id="cac6723a-4aed-4db9-8c90-cec01ff03fcb" message="#[write(payload,'application/json')]" />
+					</otherwise>
+				</choice>
+			</when>
+			<when expression="#[vars.message == 'balance']" >
+				<logger level="INFO" doc:name="Inside choice route" doc:id="bcecb897-51e8-4e79-a14c-731b46449dc0" message="============Inside choice route=========" />
+				<choice doc:name="Balance " doc:id="7cdeca74-7a35-49ea-87db-28fefaed5095" >
+					<when expression="#[sizeOf(payload) == 0]" >
+						<ee:transform doc:name="account does not exist" doc:id="9d20e62a-3d69-49d3-9777-a3e1c904f94d" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"bank_account_detailes": {
+		"account_status": {
+			"status": "FAILED",
+			"statusCode": "404",
+			"message": "An account does not exists with the provided customer details. Please try with new details. If you are a new customer, please validate your information."	
+		}
+	}
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<logger level="INFO" doc:name="he customer account deatils does not  existed in Database" doc:id="a6e132e3-40e7-48f7-8d34-c666dfe035ea" message="----------------------------The customer account deatils does not  existed in Database--------------------------" />
+					</when>
+					<otherwise >
+						<logger level="INFO" doc:name="Before database inside  balance choice router" doc:id="dc41d8de-e935-45b6-aa55-57da6114864d" message="===============Before database inside  balance choice router============" />
+						<snowflake:select doc:name="retrive the account data by the user mobile number" doc:id="a3da915d-7f03-427c-8849-72603cf7fae3" config-ref="Snowflake_Config" >
+							<snowflake:sql ><![CDATA[SELECT
+    FULLNAME,
+    ACCOUNTNUMBER,
+    BALANCE,
+    BANKNAME,
+    MOBILENUMBER
+FROM BANK_CUSTOMER_DATA
+WHERE MOBILENUMBER = :mobileNumber;]]></snowflake:sql>
+							<snowflake:input-parameters ><![CDATA[#[{
+	"mobileNumber": vars.mobileNumber
+}]]]></snowflake:input-parameters>
+						</snowflake:select>
+						<logger level="INFO" doc:name="after retrive data the output of data base is array transform into json" doc:id="d216c7bb-5f5e-4281-94a1-ad226b45c39e" message="#[write(payload,'application/json')]" />
+						<http:request method="${http.requester.method}" doc:name="Request send to whatsapp assistant" doc:id="3c8cb493-ffa7-4f25-98bc-be4114aba985" config-ref="HTTP_Request_configuration" path="${http.requester.path}" >
+							<http:body ><![CDATA[#[%dw 2.0
+output application/x-www-form-urlencoded
+
+// Safely extract mobile number from array or fallback to "N/A"
+var mobileNumber = 
+    if (payload.mobileNumber is Array)
+        (payload.mobileNumber[0] as String) default "N/A"
+    else 
+        (payload.mobileNumber as String) default "N/A"
+
+// Use default values for potentially null fields
+var customerName = payload.FULLNAME[0] default "N/A"
+var accountNumber = payload.ACCOUNTNUMBER[0] default "N/A"
+var bankName = payload.BANKNAME[0] default "N/A"
+var balance = payload.BALANCE[0] default "N/A"
+---
+{
+    token: p("ultramsg.token"),
+    to: "91" ++ mobileNumber,
+    body: 
+        "👤 Customer: " ++ customerName ++ "\n" ++
+        "💳 Account: " ++ accountNumber ++ "\n" ++
+        "📱 *Mobile:* " ++ mobileNumber ++ "\n" ++
+        "💰 Balance: ₹" ++ balance ++ "\n\n" ++
+        "🏦 *Bank:* " ++ bankName ++ "\n"
+}]]]></http:body>
+							<http:query-params ><![CDATA[#[output application/json
+---
+{
+	token : "s4gyjlv0audzesjd"
+}]]]></http:query-params>
+						</http:request>
+						<logger level="INFO" doc:name="Logger" doc:id="30dfdbaf-c22f-498f-8618-63f79b414bd1" />
+					</otherwise>
+				</choice>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Unknown command" doc:id="167b2be9-767d-431b-b8af-eb9ec0266f2d" message="#[vars.message]" />
+				<set-payload value='#[{"status":"UNKNOWN COMMAND"}]' doc:name="status" doc:id="f57cd49f-6fc3-4b65-81a9-b9f721546c9c" />
+			</otherwise>
+		</choice>
+    </flow>
+    <flow name="post:\accounts\(accountNumber)\deposit:application\json:dream-bank-sapi-config">
+		<logger level="INFO" doc:name="Deposite flow started" doc:id="58da2068-f0bb-4e6f-8b73-7e122e4f9881" message="-----------------------------Deposit Flow triggred----------------------------" />
+		<set-variable value="#[attributes.uriParams.accountNumber]" doc:name="accountNumber for the respective user" doc:id="93be17ef-4f03-48df-8d5e-0b706f64b9e4" variableName="accountNumber" />
+		<set-variable value="#[(payload.amount default 0) as Number]" doc:name="amount requested by user" doc:id="d182aa4f-4e7d-4fc6-b71b-b2d84a76b0bb" variableName="amount" />
+		<snowflake:select doc:name="Verify account deatiles are exist in database or not" doc:id="52bcb147-9314-4b0c-bfe9-784c5b913bed" config-ref="Snowflake_Config" >
+			<snowflake:sql ><![CDATA[select * from bank_customer_data where accountNumber = :accountNumber]]></snowflake:sql>
+			<snowflake:input-parameters ><![CDATA[#[{
+  "accountNumber": attributes.uriParams.accountNumber
+}]]]></snowflake:input-parameters>
+		</snowflake:select>
+		<set-variable value="#[%dw 2.0&#10;output application/json&#10;var inp = []&#10;---&#10;inp&lt;&lt;payload reduce ((item, accumulator) -&gt; item)]" doc:name="inputpayload which is send by user" doc:id="635d12d6-81f3-465b-b6cf-e0791c180563" variableName="inputpayload" />
+		<choice doc:name="Choice" doc:id="804c52ad-33e4-4391-8409-e5f2c5cec8fb" >
+			<when expression="#[sizeOf(payload) == 1]" >
+				<set-variable value="#[payload.EMAIL[0]]" doc:name="email" doc:id="5bc9b300-13ba-482f-b85f-0f502fd9c9ae" variableName="email" />
+				<logger level="INFO" doc:name="record found with the requested user data" doc:id="2b1e3fbe-fa0f-4bc0-afc5-65c1b72ee7c5" message="========record found with the requested user data before update database============" />
+				<snowflake:update doc:name="Update the deposited amount in the database" doc:id="aefb39cf-41d4-4fb4-9606-e424e005d26e" config-ref="Snowflake_Config" >
+					<snowflake:sql ><![CDATA[UPDATE MYDATABASE.PUBLIC.BANK_CUSTOMER_DATA
+SET
+    BALANCE = COALESCE(BALANCE, 0) + :amount,
+
+    TRANSACTIONS = ARRAY_APPEND(
+        COALESCE(TRANSACTIONS, ARRAY_CONSTRUCT()),
+        OBJECT_CONSTRUCT(
+            'accountNumber', ACCOUNTNUMBER,
+            'transactionType', 'DEPOSIT',
+            'amount', :amount,
+            'balanceAfterTransaction', COALESCE(BALANCE, 0) + :amount,
+            'timestamp', CURRENT_TIMESTAMP()
+        )
+    )
+
+WHERE ACCOUNTNUMBER = :accountNumber;]]></snowflake:sql>
+					<snowflake:input-parameters ><![CDATA[#[{
+            accountNumber: vars.accountNumber,
+            amount: vars.amount
+        }]]]></snowflake:input-parameters>
+				</snowflake:update>
+				<logger level="INFO" doc:name="After update Databse the deposted amount updated successfully" doc:id="bf770d43-7eee-4aa0-a815-5efd45dd19bb" message="=================Deposted amout updated successfully===========" />
+				<choice doc:name="" doc:id="0b260922-87aa-4f0d-8e58-922420fd9681" >
+					<when expression="#[payload.affectedRows &gt;= 1]" >
+						<logger level="INFO" doc:name="Before send an email" doc:id="33601346-6cc2-466c-840f-de6c4b99f203" message="--------------------------------------------Before send an email--------------------------------------#[payload]" />
+						<snowflake:select doc:name="Select" doc:id="15e3eb95-6638-49da-8964-b513f9d19003" config-ref="Snowflake_Config" >
+							<snowflake:sql ><![CDATA[select * from bank_customer_data]]></snowflake:sql>
+							<snowflake:input-parameters ><![CDATA[#[payload]]]></snowflake:input-parameters>
+						</snowflake:select>
+						<set-variable value="#[payload.BANKNAME[0]]" doc:name="BANKNAME" doc:id="8ab932b6-d795-447d-b3c8-e67777879252" variableName="BANKNAME" />
+						<set-variable value="#[payload[0].BALANCE default 0]" doc:name="balance" doc:id="530a5b4b-c7e0-4987-8fd1-e29014ea1794" variableName="balance" />
+						<set-variable value='#["TXN-" ++ (now() as String {format: "yyyyMMddHHmmss"})]' doc:name="transactionId" doc:id="eae19bd8-18a9-415d-b09f-7f7c4ce0ebf4" variableName="transactionId" />
+						<set-variable value="#[%dw 2.0&#10;output application/java&#10;&#10;var account =&#10;    (payload filter ($.ACCOUNTNUMBER == vars.accountNumber))[0]&#10;    default {}&#10;&#10;---&#10;&quot;&lt;!DOCTYPE html&gt;&#10;&lt;html&gt;&#10;&lt;head&gt;&#10;&lt;meta charset='UTF-8'&gt;&#10;&lt;title&gt;Deposit Successful&lt;/title&gt;&#10;&#10;&lt;style&gt;&#10;body{&#10;    margin:0;&#10;    padding:0;&#10;    background:#f4f7fb;&#10;    font-family:Arial,Helvetica,sans-serif;&#10;}&#10;&#10;.container{&#10;    max-width:650px;&#10;    margin:40px auto;&#10;    background:#ffffff;&#10;    border-radius:12px;&#10;    overflow:hidden;&#10;    box-shadow:0 8px 25px rgba(0,0,0,.12);&#10;}&#10;&#10;.header{&#10;    background:linear-gradient(90deg,#0047AB,#0066ff);&#10;    color:white;&#10;    padding:30px;&#10;    text-align:center;&#10;}&#10;&#10;.logo{&#10;    font-size:28px;&#10;    font-weight:bold;&#10;}&#10;&#10;.subtitle{&#10;    margin-top:8px;&#10;    font-size:14px;&#10;    opacity:.9;&#10;}&#10;&#10;.success{&#10;    text-align:center;&#10;    padding:30px 20px;&#10;}&#10;&#10;.success-icon{&#10;    width:80px;&#10;    height:80px;&#10;    line-height:80px;&#10;    margin:auto;&#10;    border-radius:50%;&#10;    background:#16a34a;&#10;    color:white;&#10;    font-size:40px;&#10;}&#10;&#10;.success h2{&#10;    color:#16a34a;&#10;    margin-top:20px;&#10;}&#10;&#10;.message{&#10;    color:#555;&#10;    font-size:15px;&#10;}&#10;&#10;.card{&#10;    margin:25px;&#10;    border-radius:10px;&#10;    border:1px solid #e5e7eb;&#10;    overflow:hidden;&#10;}&#10;&#10;.card-header{&#10;    background:#f8fafc;&#10;    padding:15px;&#10;    font-size:18px;&#10;    font-weight:bold;&#10;    color:#1f2937;&#10;}&#10;&#10;table{&#10;    width:100%;&#10;    border-collapse:collapse;&#10;}&#10;&#10;td{&#10;    padding:14px;&#10;    border-bottom:1px solid #ececec;&#10;}&#10;&#10;.label{&#10;    color:#666;&#10;    font-weight:bold;&#10;}&#10;&#10;.value{&#10;    text-align:right;&#10;    color:#111827;&#10;}&#10;&#10;.amount{&#10;    color:#16a34a;&#10;    font-size:22px;&#10;    font-weight:bold;&#10;}&#10;&#10;.footer{&#10;    background:#f8fafc;&#10;    padding:25px;&#10;    text-align:center;&#10;    color:#777;&#10;    font-size:13px;&#10;}&#10;&#10;.note{&#10;    margin:20px;&#10;    background:#eef7ff;&#10;    border-left:5px solid #0ea5e9;&#10;    padding:15px;&#10;    color:#444;&#10;    border-radius:5px;&#10;}&#10;&lt;/style&gt;&#10;&#10;&lt;/head&gt;&#10;&#10;&lt;body&gt;&#10;&#10;&lt;div class='container'&gt;&#10;&#10;&lt;div class='header'&gt;&#10;&lt;div class='logo'&gt;🏦 &quot; ++ (vars.BANKNAME default &quot;N/A&quot;) ++ &quot;&lt;/div&gt;&#10;&lt;div class='subtitle'&gt;Secure • Trusted • Digital Banking&lt;/div&gt;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='success'&gt;&#10;&#10;&lt;div class='success-icon'&gt;&#10;✓&#10;&lt;/div&gt;&#10;&#10;&lt;h2&gt;Deposit Successful&lt;/h2&gt;&#10;&#10;&lt;p class='message'&gt;&#10;Your transaction has been processed successfully.&#10;&lt;/p&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='card'&gt;&#10;&#10;&lt;div class='card-header'&gt;&#10;Transaction Summary&#10;&lt;/div&gt;&#10;&#10;&lt;table&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Transaction ID&lt;/td&gt;&#10;&lt;td class='value'&gt;&quot; ++ (vars.transactionId default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Account Number&lt;/td&gt;&#10;&lt;td class='value'&gt;&quot; ++ (vars.accountNumber as String) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Transaction Type&lt;/td&gt;&#10;&lt;td class='value'&gt;DEPOSITED&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Amount Credited&lt;/td&gt;&#10;&lt;td class='value amount'&gt;₹&quot; ++ ((vars.amount default 0) as String) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Available Balance&lt;/td&gt;&#10;&lt;td class='value'&gt;₹&quot; ++ ((account.BALANCE default 0) as String) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Transaction Date&lt;/td&gt;&#10;&lt;td class='value'&gt;&quot; ++ ((now()) as String {format:'dd MMM yyyy hh:mm a'}) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Status&lt;/td&gt;&#10;&lt;td class='value' style='color:#16a34a;font-weight:bold;'&gt;&#10;SUCCESS&#10;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;/table&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='note'&gt;&#10;&#10;&lt;b&gt;Security Notice&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;&#10;&#10;If you did not authorize this transaction, please contact our Customer Care immediately or call our 24×7 Helpline.&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='footer'&gt;&#10;    &lt;b&gt;Real Bank&lt;/b&gt;&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    📞 Customer Care: +91 9494207062&#10;    &lt;br/&gt;&#10;    ✉ support.realbank@gmail.com&#10;    &lt;br/&gt;&#10;    🌐 www.realbank.com&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    © 2026 Real Bank. All Rights Reserved.&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    This is an automated notification. Please do not reply to this email.&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/body&gt;&#10;&#10;&lt;/html&gt;&quot;]" doc:name="emailBody" doc:id="7108f867-464b-4496-ad02-006eb059dcca" variableName="emailBody" />
+						<parse-template doc:name="Parse Template" doc:id="835e4da1-4043-4e7d-a262-ada775a122ed" >
+							<content >&lt;html&gt;
+&lt;head&gt;
+    &lt;style&gt;
+        body {
+            text-align: center;
+        }
+
+        table {
+            margin: 0 auto;
+            height: 20vh;
+            width: 40vh;
+        }
+
+        h1 {
+            color: green;
+        }
+        h6 {
+            color: red;
+        }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h3&gt;#[vars.emailBody]&lt;/h3&gt;
+    
+&lt;/body&gt;
+&lt;/html&gt;
+</content>
+						</parse-template>
+						<email:send doc:name="Email Send deposit amount" doc:id="5a70e021-16ce-401d-8316-8c657bf55930" config-ref="Email_SMTP" fromAddress="narsingbeesetti006@gmail.com" subject='#["Amount Depoist is successful Today! " ++ vars.BANKNAME[0]]' >
+							<email:to-addresses >
+								<email:to-address value="#[vars.email]" />
+								<email:to-address value="support.realbank@gmail.com" />
+							</email:to-addresses>
+							<email:body contentType="text/html" encoding="UTF-8" />
+						</email:send>
+						<logger level="INFO" doc:name="email sent successfully" doc:id="b7e994c6-bae6-44a8-99ef-cd0fbfaa3331" message="----------------------------------------email sent successfully-----------------------------------------" />
+						<ee:transform doc:name="output" doc:id="715f4bd3-4ce9-4520-9f99-6c6e7a007a92" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"status": "Success",
+	"statusCode": 200,
+	"message": "Amount deposited successfully done for the Account Number - " ++ vars.accountNumber as String,
+	"data": {
+		"transactionId": "TXN-" ++ (now() as String {format: "yyyyMMddHHmmss"}),
+		"currency": "INR",
+		"balance": vars.balance,
+		'type': 'Deposit',
+	     "timestamp": now()
+	}
+
+}
+]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<logger level="INFO" doc:name="Logger" doc:id="fa95a8c3-0d43-481b-8107-f0ce70fc5f1e" message="----------------------End Deposite Flow------------------#[payload]-" />
+					</when>
+					<otherwise >
+						<ee:transform doc:name="Update won't happend" doc:id="2726cb0e-466f-46e5-8a5b-f7e3e2bbd490" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  status: 
+    "Account is identified but Amount deposited failed for Account Number - " 
+    ++ vars.inputpayload.ACCOUNTNUMBER[0] as String
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</otherwise>
+				</choice>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="record not found" doc:id="cc8b664f-d66f-4c32-a495-b544cf8f0987" message="---------------------------------Record not Found for the given input------------------------------" />
+				<ee:transform doc:name="output" doc:id="57946f46-d9fe-46eb-893b-e438ce2d88d3" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+var accNo = vars.inputpayload.ACCOUNTNUMBER[0] as String
+var bank  = vars.inputpayload.BANKNAME[0] as String
+---
+{
+  errorCode: "ACCOUNT_NOT_FOUND",
+  message: "Your account number " ++ accNo ++ 
+           " does not exist in bank " ++ bank ++ 
+           ". Please try with a different account number."
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+    </flow>
+    <flow name="post:\accounts\(accountNumber)\withdraw:application\json:dream-bank-sapi-config">
+		<logger level="INFO" doc:name="Withdraw flow started" doc:id="f1550a6f-eda4-49b3-9a2c-fb6cadf9f9bd" message="-----------------------------Withdraw Flow triggred----------------------------" />
+		<set-variable value="#[attributes.uriParams.accountNumber]" doc:name="accountNumber for the respective user" doc:id="12d59d5d-8281-4ab4-aa59-fd60291da577" variableName="accountNumber" />
+		<set-variable value="#[(payload.amount default 0) as Number]" doc:name="amount requested by user" doc:id="bd2e23fb-0fad-402f-9c90-d1515855eac1" variableName="amount" />
+		<snowflake:select doc:name="Verify account exist or not" doc:id="333761b8-f9ef-411b-b44d-c56c547c989f" config-ref="Snowflake_Config" >
+			<snowflake:sql ><![CDATA[select * from bank_customer_data where accountNumber = :accountNumber]]></snowflake:sql>
+			<snowflake:input-parameters ><![CDATA[#[{
+  "accountNumber": vars.accountNumber
+  }]]]></snowflake:input-parameters>
+		</snowflake:select>
+		<set-variable value="#[payload.BALANCE[0]]" doc:name="total balance available in the bank" doc:id="15f06e33-2b3c-45bc-bc6b-e25e96a34c07" variableName="balance" />
+		<set-variable value="#[%dw 2.0&#10;output application/json&#10;var inp = []&#10;---&#10;inp&lt;&lt;payload reduce ((item, accumulator) -&gt; item)]" doc:name="inputpayload which is reuqted data send by user" doc:id="094efa89-5043-4af3-b0fb-ec6ee31510db" variableName="inputpayload" />
+		<choice doc:name="Choice" doc:id="a35236e8-b809-496b-9471-0e06acc37267" >
+			<when expression="#[sizeOf(payload) &gt; 0]" >
+				<logger level="INFO" doc:name="record found with the requested user data before update database" doc:id="d34f9b2b-46d7-469f-af31-4fca44011784" message="---------------------------------record found with the requested user data before update database-------------------------------" />
+				<set-variable value="#[payload.EMAIL[0]]" doc:name="email of the user" doc:id="e1603c2d-7394-4592-b0c0-a7e254516e71" variableName="email" />
+				<logger level="INFO" doc:name="Before Update" doc:id="15976319-c31a-4e8a-9eaf-a58b12b03ab3" message="------------------Before Update withdraw Flow-------------" />
+				<set-variable value="#[%dw 2.0&#10;output application/java&#10;&#10;var currentBalance = (vars.balance default 0) as Number&#10;var withdrawAmount = (vars.amount default 0) as Number&#10;var remainingBalance = currentBalance - withdrawAmount&#10;&#10;---&#10;{&#10;    balance: remainingBalance,&#10;    amount: withdrawAmount,&#10;    accountNumber: vars.accountNumber&#10;}]" doc:name="leftBalance mapping " doc:id="615affdd-8ab0-422e-bbd6-b2f42cdc754f" variableName="leftBalance" />
+				<set-variable value="#[vars.leftBalance.balance]" doc:name="leftbalances" doc:id="7a069079-d72e-4234-9a12-b23e589ec698" variableName="leftbalances" />
+				<choice doc:name="Choice" doc:id="a2c3a7d5-2eaa-4211-bca1-b062d5690cd7" >
+					<when expression="#[vars.leftBalance.balance  &gt;= 0]" >
+						<logger level="INFO" doc:name="Inside balance choice router" doc:id="a4a5462c-4b62-4c36-acaf-a22bc846e19a" message="=======Sufficient Balance=======Inside balance choice router===========" />
+						<snowflake:update doc:name="Update account data after money withdraw " doc:id="cd2aaafa-ac69-4fd2-91a9-6eb4b8cb763f" config-ref="Snowflake_Config" >
+							<snowflake:sql ><![CDATA[UPDATE MYDATABASE.PUBLIC.BANK_CUSTOMER_DATA
+SET
+    BALANCE = :balance,
+    TRANSACTIONS = ARRAY_APPEND(
+        COALESCE(TRANSACTIONS, ARRAY_CONSTRUCT()),
+        OBJECT_CONSTRUCT(
+            'accountNumber', ACCOUNTNUMBER,
+            'transactionType', 'WITHDRAW',
+            'amount', :amount,
+            'balanceAfterTransaction', :balance,
+            'timestamp', CURRENT_TIMESTAMP()
+        )
+    )
+WHERE ACCOUNTNUMBER = :accountNumber;]]></snowflake:sql>
+							<snowflake:input-parameters ><![CDATA[#[%dw 2.0
+output application/java
+---
+{
+	balance: vars.leftBalance.balance as String,
+	amount: vars.amount,
+	accountNumber: vars.accountNumber,
+}]]]></snowflake:input-parameters>
+						</snowflake:update>
+						<logger level="INFO" doc:name="After Update" doc:id="531c7694-fd6d-4fdc-a6e8-d0d8d34865fb" message="-------------------------After Update withdraw Flow-----------------" />
+						<choice doc:name="checking the withdraw amount updated or not" doc:id="bf6bbf80-f226-486d-a440-cb676146bfe7" >
+							<when expression="#[((payload.updateCount default payload.affectedRows default 0) as Number) &gt; 0]" >
+								<logger level="INFO" doc:name="Before send an email" doc:id="c5fc8f76-5593-4400-b7ba-743e778eb715" message="--------------------------------------------Before send an email--------------------------------------#[payload]" />
+								<snowflake:select doc:name="retrive data" doc:id="14cd9aeb-410b-42fb-8384-583d44921a52" config-ref="Snowflake_Config" >
+									<snowflake:sql ><![CDATA[select * from bank_customer_data]]></snowflake:sql>
+									<snowflake:input-parameters ><![CDATA[#[payload]]]></snowflake:input-parameters>
+								</snowflake:select>
+								<set-variable value="#[payload[0].BALANCE default 0]" doc:name="BALANCE" doc:id="871fab95-5a0d-49cc-bf8d-e857db2fd562" variableName="BALANCE" />
+								<set-variable value="#[payload.BANKNAME[0]]" doc:name="BANKNAME" doc:id="d7a9c60d-c71d-4365-99a3-1e26b025154f" variableName="BANKNAME" />
+								<set-variable value='#["TXN-" ++ (now() as String {format: "yyyyMMddHHmmss"})]' doc:name="transactionId" doc:id="c8720e03-65dd-444c-bbac-20b8a9d9cf04" variableName="transactionId" />
+								<set-variable value="#[%dw 2.0&#10;output application/java&#10;&#10;var acc = vars.accountNumber&#10;var record = (payload filter ($.ACCOUNTNUMBER == acc))[0] default {}&#10;&#10;---&#10;&quot;&lt;!DOCTYPE html&gt;&#10;&lt;html&gt;&#10;&lt;head&gt;&#10;&lt;meta charset='UTF-8'&gt;&#10;&#10;&lt;style&gt;&#10;&#10;body{&#10;    margin:0;&#10;    padding:0;&#10;    background:#f2f5f9;&#10;    font-family:Arial,Helvetica,sans-serif;&#10;}&#10;&#10;.wrapper{&#10;    width:100%;&#10;    padding:35px 0;&#10;}&#10;&#10;.container{&#10;    width:650px;&#10;    margin:auto;&#10;    background:#ffffff;&#10;    border-radius:15px;&#10;    overflow:hidden;&#10;    box-shadow:0 10px 35px rgba(0,0,0,.15);&#10;}&#10;&#10;.header{&#10;    background:linear-gradient(90deg,#003366,#0059b3);&#10;    padding:30px;&#10;    color:#fff;&#10;    text-align:center;&#10;}&#10;&#10;.logo{&#10;    font-size:30px;&#10;    font-weight:bold;&#10;}&#10;&#10;.tagline{&#10;    margin-top:8px;&#10;    font-size:14px;&#10;    opacity:.9;&#10;}&#10;&#10;.alert{&#10;    text-align:center;&#10;    padding:35px 25px;&#10;}&#10;&#10;.icon{&#10;    width:85px;&#10;    height:85px;&#10;    line-height:85px;&#10;    border-radius:50%;&#10;    margin:auto;&#10;    background:#ef4444;&#10;    color:#fff;&#10;    font-size:42px;&#10;}&#10;&#10;.alert h2{&#10;    color:#dc2626;&#10;    margin-top:20px;&#10;}&#10;&#10;.message{&#10;    color:#555;&#10;    font-size:15px;&#10;}&#10;&#10;.summary{&#10;    margin:25px;&#10;    border:1px solid #e5e7eb;&#10;    border-radius:10px;&#10;    overflow:hidden;&#10;}&#10;&#10;.summary-header{&#10;    background:#f8fafc;&#10;    padding:15px;&#10;    font-size:20px;&#10;    font-weight:bold;&#10;    color:#003366;&#10;}&#10;&#10;table{&#10;    width:100%;&#10;    border-collapse:collapse;&#10;}&#10;&#10;td{&#10;    padding:15px;&#10;    border-bottom:1px solid #ececec;&#10;}&#10;&#10;.label{&#10;    font-weight:bold;&#10;    color:#555;&#10;}&#10;&#10;.value{&#10;    text-align:right;&#10;    color:#111827;&#10;}&#10;&#10;.amount{&#10;    color:#dc2626;&#10;    font-size:22px;&#10;    font-weight:bold;&#10;}&#10;&#10;.status{&#10;    color:#16a34a;&#10;    font-weight:bold;&#10;}&#10;&#10;.notice{&#10;    margin:25px;&#10;    background:#fff8e6;&#10;    border-left:5px solid #f59e0b;&#10;    padding:18px;&#10;    color:#555;&#10;    border-radius:6px;&#10;}&#10;&#10;.footer{&#10;    background:#f8fafc;&#10;    text-align:center;&#10;    padding:30px;&#10;    color:#666;&#10;    font-size:13px;&#10;}&#10;&#10;.footer a{&#10;    color:#0059b3;&#10;    text-decoration:none;&#10;}&#10;&#10;&lt;/style&gt;&#10;&#10;&lt;/head&gt;&#10;&#10;&lt;body&gt;&#10;&#10;&lt;div class='wrapper'&gt;&#10;&#10;&lt;div class='container'&gt;&#10;&#10;&lt;div class='header'&gt;&#10;&#10;&lt;div class='logo'&gt;&#10;🏦 &quot; ++ (vars.BANKNAME default &quot;N/A&quot;) ++ &quot;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='tagline'&gt;&#10;Secure • Trusted • Digital Banking&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='alert'&gt;&#10;&#10;&lt;div class='icon'&gt;&#10;⬇&#10;&lt;/div&gt;&#10;&#10;&lt;h2&gt;Debit Transaction Successful&lt;/h2&gt;&#10;&#10;&lt;p class='message'&gt;&#10;A withdrawal has been successfully processed from your account.&#10;&lt;/p&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='summary'&gt;&#10;&#10;&lt;div class='summary-header'&gt;&#10;Transaction Details&#10;&lt;/div&gt;&#10;&#10;&lt;table&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Transaction ID&lt;/td&gt;&#10;&lt;td class='value'&gt;&quot; ++ (vars.transactionId default &quot;N/A&quot;) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Account Number&lt;/td&gt;&#10;&lt;td class='value'&gt;&quot; ++ (vars.accountNumber as String) ++ &quot;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Transaction Type&lt;/td&gt;&#10;&lt;td class='value'&gt;WITHDRAW&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Amount Debited&lt;/td&gt;&#10;&lt;td class='value amount'&gt;&#10;₹&quot; ++ ((vars.amount default 0) as String) ++ &quot;&#10;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Available Balance&lt;/td&gt;&#10;&lt;td class='value'&gt;&#10;₹&quot; ++ ((record.BALANCE default 0) as String) ++ &quot;&#10;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Transaction Date&lt;/td&gt;&#10;&lt;td class='value'&gt;&#10;&quot; ++ ((now()) as String {format:'dd MMM yyyy hh:mm:ss a'}) ++ &quot;&#10;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;tr&gt;&#10;&lt;td class='label'&gt;Status&lt;/td&gt;&#10;&lt;td class='value status'&gt;&#10;SUCCESS&#10;&lt;/td&gt;&#10;&lt;/tr&gt;&#10;&#10;&lt;/table&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='notice'&gt;&#10;&#10;&lt;b&gt;Security Advice&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;&#10;&#10;If you did not authorize this transaction, immediately contact our 24×7 Customer Care or temporarily block your debit card through Internet Banking or the Mobile Banking App.&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;div class='footer'&gt;&#10;    &lt;b&gt;Real Bank&lt;/b&gt;&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    📞 Customer Care: +91 9494207062&#10;    &lt;br/&gt;&#10;    ✉ support.realbank@gmail.com&#10;    &lt;br/&gt;&#10;    🌐 www.realbank.com&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    © 2026 Real Bank. All Rights Reserved.&#10;    &lt;br/&gt;&lt;br/&gt;&#10;    This is an automated notification. Please do not reply to this email.&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/body&gt;&#10;&#10;&lt;/html&gt;&quot;]" doc:name="emailBody" doc:id="ebf4dca0-1ff3-417b-b5f1-53afd2cc774f" variableName="emailBody" />
+								<parse-template doc:name="Parse Template" doc:id="93e50eef-83da-4b02-9b23-e03c6b94c63f" >
+									<content >&lt;html&gt;
+&lt;head&gt;
+    &lt;style&gt;
+        body {
+            text-align: center;
+        }
+
+        table {
+            margin: 0 auto;
+            height: 20vh;
+            width: 40vh;
+        }
+
+        h1 {
+            color: green;
+        }
+        h6 {
+            color: red;
+        }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h3&gt;#[vars.emailBody]&lt;/h3&gt;
+    
+&lt;/body&gt;
+&lt;/html&gt;
+</content>
+								</parse-template>
+								<email:send doc:name="Email Send deposit amount" doc:id="6ae33209-5657-4dd6-b665-99a6d85a3831" config-ref="Email_SMTP" fromAddress="narsingbeesetti006@gmail.com" subject='#["Amount Withdraw is successful Today! " ++ vars.BANKNAME as String]' >
+									<email:to-addresses >
+										<email:to-address value="#[vars.inputpayload.EMAIL[0]]" />
+										<email:to-address value="support.realbank@gmail.com" />
+									</email:to-addresses>
+									<email:body contentType="text/html" />
+								</email:send>
+								<logger level="INFO" doc:name="email sent successfully" doc:id="66a5d154-a2ee-4557-867d-4fd8dc7f009c" message="----------------------------------------email sent successfully-----------------------------------------#[payload]" />
+								<ee:transform doc:name="output" doc:id="18067164-ab8e-42e1-8c1c-7f0300833ef9" >
+									<ee:message >
+										<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    status: "Success",
+    statusCode: 200,
+    message: "Amount debited successfully for Account Number - " ++ (vars.accountNumber as String),
+    data: {
+        transactionId: "TXN-" ++ (now() as String {format: "yyyyMMddHHmmss"}),
+        currency: "INR",
+        withdrawTime: now(),
+        'type': "Withdraw",
+        amount: vars.amount,
+        balance: vars.BALANCE
+    }
+}]]></ee:set-payload>
+									</ee:message>
+								</ee:transform>
+								<logger level="INFO" doc:name="Logger" doc:id="db0f085f-6563-458d-acca-55e71a3824d9" message="--------------------End Withdraw flow------------#[payload]" />
+							</when>
+							<otherwise >
+								<ee:transform doc:name="Update won't happend" doc:id="42f95ec8-81be-40f2-a4f8-fc69aa5b2283" >
+									<ee:message >
+										<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	amount: vars.amount,
+	timestamp: payload.CREATED_AT as String default "",
+	status: "Account is identified but Amount withdraw failed for Account Number - " ++ vars.inputpayload.ACCOUNTNUMBER[0] as String
+}]]></ee:set-payload>
+									</ee:message>
+								</ee:transform>
+							</otherwise>
+						</choice>
+					</when>
+					<otherwise >
+						<ee:transform doc:name="Insufficent balance" doc:id="946efd2c-2759-490f-97a0-98003d48ae0c" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    bank_account_details: {
+        account_status: {
+            status: "FAILED",
+            statusCode: 404,
+            amount: vars.amount,
+            availableBalance: vars.balance,
+            message: "Insufficient balance. The requested withdrawal amount exceeds the available account balance."
+        }
+    }
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<logger level="INFO" doc:name="End insufficent balance flow" doc:id="7ff3470f-b103-43d1-9a7f-4a71beaf8a72" message="==========End insufficent balance flow=========#[payload]" />
+					</otherwise>
+				</choice>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="record not found" doc:id="70502ff5-dee3-4a23-82bc-937f0a16db30" message="---------------------------------Record not Found for the given input------------------------------" />
+				<ee:transform doc:name="output" doc:id="4d7ccf8e-e16c-4570-bf1f-c0e57410df54" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"bank_account_detailes": {
+		"account_status": {
+			"status": "FAILED",
+			"statusCode": "404",
+			"accountNumber": vars.accountNumber default "Unknow",
+			"message": "An account does not exists with the provided customer details. Please try with new details. If you are a new customer, please validate your information."	
+		}
+	}
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="Record Not Found End Flow" doc:id="dfb76bbd-a739-453e-96f0-5922e554f069" message="==========Record Not Found End Flow===========#[payload]" />
+			</otherwise>
+		</choice>
+    </flow>
+</mule>
