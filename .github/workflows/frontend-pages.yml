@@ -28,6 +28,9 @@ jobs:
         uses: actions/checkout@v4
       - name: Configure Pages
         uses: actions/configure-pages@v5
+      - name: Configure CloudHub API endpoint
+        run: |
+          sed -i 's|http://localhost:8081/api|https://dream-bank-sapi-say98g.5sc6y6-3.usa-e2.cloudhub.io/api|g' frontend/index.html
       - name: Upload frontend artifact
         uses: actions/upload-pages-artifact@v3
         with:
